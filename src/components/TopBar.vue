@@ -13,7 +13,7 @@ const dpIsOpen = ref(false)
 
 // Close all dropdowns
 const closeAllDropdowns = (except) => {
-  const all = { corpus: showCorpusDropdown, acteurs: showActeursDropdown, query: showQueryDropdown, language: showLanguageDropdown }
+  const all = { corpus: showCorpusDropdown, actors: showActorsDropdown, query: showQueryDropdown, language: showLanguageDropdown }
   Object.entries(all).forEach(([key, r]) => {
     if (key !== except) r.value = false
   })
@@ -22,27 +22,25 @@ const closeAllDropdowns = (except) => {
 
 // Toggle dropdowns (close others before opening)
 const toggleDropdown = (name) => {
-  const refs = { corpus: showCorpusDropdown, acteurs: showActeursDropdown }
+  const refs = { corpus: showCorpusDropdown, actors: showActorsDropdown }
   const isOpen = refs[name].value
   closeAllDropdowns(name)
   refs[name].value = !isOpen
 
   if (name === 'corpus' && !isOpen) {
     nextTick(() => {
-      const el = document.querySelector('.dropdown-option.active')
+      const el = document.querySelector('.menu-option.active')
       if (el) el.scrollIntoView({ block: 'nearest' })
     })
   }
 
-  if (name === 'acteurs' && !isOpen) {
-    if (selectedActeur.value) {
-      // Expand the category containing the selected item
-      acteursCategories.value.forEach(cat => {
-        cat.expanded = cat.items.some(item => getItemName(item) === selectedActeur.value)
+  if (name === 'actors' && !isOpen) {
+    if (selectedActor.value) {
+      actorsCategories.value.forEach(cat => {
+        cat.expanded = cat.items.some(item => getItemName(item) === selectedActor.value)
       })
-      // Scroll to selected item
       nextTick(() => {
-        const el = document.querySelector('.dropdown-option.active, .dropdown-option-modularity.active')
+        const el = document.querySelector('.menu-option.active')
         if (el) el.scrollIntoView({ block: 'nearest' })
       })
     }
@@ -75,20 +73,20 @@ const highlightMatch = (text, search) => {
   return text.replace(regex, '<span class="highlight-match">$1</span>')
 }
 
-// Acteurs
-const showActeursDropdown = ref(false)
-const acteursSearch = ref('')
+// Actors
+const showActorsDropdown = ref(false)
+const actorsSearch = ref('')
 
-const acteursEntities = ['Entité 1', 'Entité 2', 'Entité 3', 'Entité 4', 'Entité 5', 'Entité 6', 'Entité 7', 'Entité 8', 'Entité 9', 'Entité 10']
+const actorsEntities = ['Entité 1', 'Entité 2', 'Entité 3', 'Entité 4', 'Entité 5', 'Entité 6', 'Entité 7', 'Entité 8', 'Entité 9', 'Entité 10']
 
 const filteredEntities = () => {
-  if (!acteursSearch.value) return acteursEntities.filter(e => checkedEntities.value.includes(e))
-  return acteursEntities.filter(item =>
-    item.toLowerCase().includes(acteursSearch.value.toLowerCase())
+  if (!actorsSearch.value) return actorsEntities.filter(e => checkedEntities.value.includes(e))
+  return actorsEntities.filter(item =>
+    item.toLowerCase().includes(actorsSearch.value.toLowerCase())
   )
 }
 
-const acteursCategories = ref([
+const actorsCategories = ref([
   { id: 'entities', label: "Listes d'entités", expanded: false, items: [
     'Liste 1', 'Liste 2', 'Liste 3', 'Liste 4', 'Liste 5', 'Liste 6', 'Liste 7', 'Liste 8', 'Liste 9', 'Liste 10'
   ]},
@@ -112,19 +110,19 @@ const acteursCategories = ref([
   ]}
 ])
 
-const selectedActeur = ref(null)
+const selectedActor = ref(null)
 const checkedEntities = ref([])
 
 const getItemName = (item) => typeof item === 'string' ? item : item.name
 
-const selectActeur = (item) => {
+const selectActor = (item) => {
   checkedEntities.value = []
-  selectedActeur.value = getItemName(item)
-  showActeursDropdown.value = false
+  selectedActor.value = getItemName(item)
+  showActorsDropdown.value = false
 }
 
 const toggleEntity = (entity) => {
-  selectedActeur.value = null
+  selectedActor.value = null
   const idx = checkedEntities.value.indexOf(entity)
   if (idx === -1) {
     checkedEntities.value.push(entity)
@@ -141,39 +139,38 @@ const resetEntities = () => {
   checkedEntities.value = []
 }
 
-const clearActeur = () => {
-  selectedActeur.value = null
+const clearActor = () => {
+  selectedActor.value = null
   checkedEntities.value = []
 }
 
-const hasSelection = () => selectedActeur.value || checkedEntities.value.length > 0
+const hasSelection = () => selectedActor.value || checkedEntities.value.length > 0
 
-const filteredActeursItems = (items) => {
-  if (!acteursSearch.value) return items
+const filteredActorsItems = (items) => {
+  if (!actorsSearch.value) return items
   return items.filter(item =>
-    getItemName(item).toLowerCase().includes(acteursSearch.value.toLowerCase())
+    getItemName(item).toLowerCase().includes(actorsSearch.value.toLowerCase())
   )
 }
 
 const isCategoryVisible = (category) => {
-  if (acteursSearch.value) return filteredActeursItems(category.items).length > 0
+  if (actorsSearch.value) return filteredActorsItems(category.items).length > 0
   return category.expanded
 }
 
-const toggleActeursCategory = (category) => {
+const toggleActorsCategory = (category) => {
   category.expanded = !category.expanded
 }
 
-// Sujets bar
-const sujetsSearch = ref('')
-const sujetsSearchFocused = ref(false)
+// Topic bar
+const topicSearch = ref('')
+const topicSearchFocused = ref(false)
 
-const submitSujetsSearch = (e) => {
+const submitTopicSearch = (e) => {
   e.target.blur()
 }
 
-
-// Query dropdown (inside Sujets bar)
+// Query dropdown (inside Topic bar)
 const showQueryDropdown = ref(false)
 const selectedQuery = ref(null)
 const querySearch = ref('')
@@ -203,7 +200,7 @@ const toggleQueryDropdown = () => {
 
   if (showQueryDropdown.value && selectedQuery.value) {
     nextTick(() => {
-      const el = document.querySelector('.queries-dropdown-menu .dropdown-option.active')
+      const el = document.querySelector('.topic-query-menu .menu-option.active')
       if (el) el.scrollIntoView({ block: 'nearest' })
     })
   }
@@ -238,7 +235,7 @@ const clearLanguage = () => {
   selectedLanguage.value = null
 }
 
-// Date Picker — full logic
+// Date Picker
 const padTwo = (n) => String(n).padStart(2, '0')
 const toDateStr = (d) => `${padTwo(d.getDate())}/${padTwo(d.getMonth() + 1)}/${d.getFullYear()}`
 const now = new Date()
@@ -489,7 +486,7 @@ const dpOnDayHover = (dayObj) => {
 }
 
 const dpDayClasses = (dayObj) => {
-  const classes = ['day-cell']
+  const classes = ['datepicker-day']
   if (!dayObj.isCurrentMonth || dpIsFuture(dayObj)) {
     classes.push('other-month')
     return classes
@@ -695,179 +692,176 @@ onUnmounted(() => {
 
 <template>
   <div class="topbar">
-    <!-- Corpus Dropdown -->
-    <div class="topbar-item dropdown" :class="{ active: showCorpusDropdown }">
+    <!-- Corpus -->
+    <div class="topbar-item topbar-dropdown" :class="{ active: showCorpusDropdown }">
       <span class="floating-label floating" :class="{ 'floating-active': showCorpusDropdown }">Corpus</span>
-      <button class="dropdown-trigger" @click="toggleDropdown('corpus')">
+      <button class="topbar-dropdown-trigger" @click="toggleDropdown('corpus')">
         <span>{{ selectedCorpus }}</span>
         <svg class="icon-chevron" :class="{ rotated: showCorpusDropdown }" width="15" height="15" viewBox="0 0 25 25" fill="none"><path d="M13.3592 17.6611C12.8846 18.113 12.1173 18.113 11.6477 17.6611L3.5702 9.96875C3.09564 9.51683 3.09564 8.78606 3.5702 8.33894C4.04475 7.89183 4.81212 7.88702 5.28163 8.33894L12.5009 15.2139L19.7202 8.33894C20.1948 7.88702 20.9622 7.88702 21.4317 8.33894C21.9012 8.79087 21.9062 9.52164 21.4317 9.96875L13.3541 17.6611L13.3592 17.6611Z" fill="currentColor"/></svg>
       </button>
-      <div v-if="showCorpusDropdown" class="dropdown-menu">
-        <div class="dropdown-search">
-          <svg class="search-icon" width="12" height="12" viewBox="0 0 25 25" fill="none"><path d="M17.5296 10.3453C17.5296 8.43878 16.7725 6.6103 15.4247 5.26215C14.0769 3.914 12.2489 3.15662 10.3428 3.15662C8.43678 3.15662 6.60879 3.914 5.261 5.26215C3.91322 6.6103 3.15604 8.43878 3.15604 10.3453C3.15604 12.2519 3.91322 14.0804 5.261 15.4285C6.60879 16.7767 8.43678 17.5341 10.3428 17.5341C12.2489 17.5341 14.0769 16.7767 15.4247 15.4285C16.7725 14.0804 17.5296 12.2519 17.5296 10.3453ZM16.1417 17.6734C14.5516 18.9359 12.5348 19.6907 10.3428 19.6907C5.18182 19.6907 1 15.5078 1 10.3453C1 5.18294 5.18182 1 10.3428 1C15.5039 1 19.6857 5.18294 19.6857 10.3453C19.6857 12.5379 18.9311 14.5552 17.6689 16.1458L23.6833 22.1618C24.1056 22.5842 24.1056 23.2671 23.6833 23.6849C23.2611 24.1028 22.5784 24.1073 22.1606 23.6849L16.1417 17.6734Z" fill="currentColor"/></svg>
+      <div v-if="showCorpusDropdown" class="menu">
+        <div class="menu-search">
+          <svg class="icon-search" width="12" height="12" viewBox="0 0 25 25" fill="none"><path d="M17.5296 10.3453C17.5296 8.43878 16.7725 6.6103 15.4247 5.26215C14.0769 3.914 12.2489 3.15662 10.3428 3.15662C8.43678 3.15662 6.60879 3.914 5.261 5.26215C3.91322 6.6103 3.15604 8.43878 3.15604 10.3453C3.15604 12.2519 3.91322 14.0804 5.261 15.4285C6.60879 16.7767 8.43678 17.5341 10.3428 17.5341C12.2489 17.5341 14.0769 16.7767 15.4247 15.4285C16.7725 14.0804 17.5296 12.2519 17.5296 10.3453ZM16.1417 17.6734C14.5516 18.9359 12.5348 19.6907 10.3428 19.6907C5.18182 19.6907 1 15.5078 1 10.3453C1 5.18294 5.18182 1 10.3428 1C15.5039 1 19.6857 5.18294 19.6857 10.3453C19.6857 12.5379 18.9311 14.5552 17.6689 16.1458L23.6833 22.1618C24.1056 22.5842 24.1056 23.2671 23.6833 23.6849C23.2611 24.1028 22.5784 24.1073 22.1606 23.6849L16.1417 17.6734Z" fill="currentColor"/></svg>
           <input type="text" v-model="corpusSearch" placeholder="" />
         </div>
-        <div class="dropdown-options">
+        <div class="menu-options">
           <button
             v-for="option in filteredCorpusOptions()"
             :key="option"
-            class="dropdown-option"
+            class="menu-option"
             :class="{ active: option === selectedCorpus }"
             @click="selectCorpus(option)"
             v-html="highlightMatch(option, corpusSearch)"
-          >
-          </button>
+          />
         </div>
       </div>
     </div>
 
-    <!-- Acteurs Dropdown -->
-    <div class="topbar-item dropdown" :class="{ active: showActeursDropdown }">
+    <!-- Actors -->
+    <div class="topbar-item topbar-dropdown" :class="{ active: showActorsDropdown }">
       <span
-        v-if="showActeursDropdown || hasSelection()"
+        v-if="showActorsDropdown || hasSelection()"
         class="floating-label floating"
-        :class="{ 'floating-active': showActeursDropdown }"
+        :class="{ 'floating-active': showActorsDropdown }"
       >Acteurs</span>
-      <button class="dropdown-trigger" @click="toggleDropdown('acteurs')">
-        <div v-if="hasSelection()" class="trigger-tags">
-          <span v-for="entity in checkedEntities" :key="entity" class="trigger-tag-checkbox">
+      <button class="topbar-dropdown-trigger" @click="toggleDropdown('actors')">
+        <div v-if="hasSelection()" class="actors-tags">
+          <span v-for="entity in checkedEntities" :key="entity" class="actors-tag--checkbox">
             {{ entity }}
-            <svg class="tag-remove" @click.stop="removeEntity(entity)" width="10" height="10" viewBox="0 0 25 25" fill="none"><path d="M4.31219 5.81336C3.89594 5.39711 3.89594 4.72402 4.31219 4.31219C4.72844 3.90036 5.40154 3.89594 5.81336 4.31219L12.5 10.9988L19.1866 4.31219C19.6029 3.89594 20.276 3.89594 20.6878 4.31219C21.0996 4.72844 21.1041 5.40154 20.6878 5.81336L14.0012 12.5L20.6878 19.1866C21.1041 19.6029 21.1041 20.276 20.6878 20.6878C20.2716 21.0996 19.5985 21.1041 19.1866 20.6878L12.5 14.0012L5.81336 20.6878C5.39711 21.1041 4.72402 21.1041 4.31219 20.6878C3.90036 20.2716 3.89594 19.5985 4.31219 19.1866L10.9988 12.5L4.31219 5.81336Z" fill="currentColor"/></svg>
+            <svg class="icon-clear" @click.stop="removeEntity(entity)" width="10" height="10" viewBox="0 0 25 25" fill="none"><path d="M4.31219 5.81336C3.89594 5.39711 3.89594 4.72402 4.31219 4.31219C4.72844 3.90036 5.40154 3.89594 5.81336 4.31219L12.5 10.9988L19.1866 4.31219C19.6029 3.89594 20.276 3.89594 20.6878 4.31219C21.0996 4.72844 21.1041 5.40154 20.6878 5.81336L14.0012 12.5L20.6878 19.1866C21.1041 19.6029 21.1041 20.276 20.6878 20.6878C20.2716 21.0996 19.5985 21.1041 19.1866 20.6878L12.5 14.0012L5.81336 20.6878C5.39711 21.1041 4.72402 21.1041 4.31219 20.6878C3.90036 20.2716 3.89594 19.5985 4.31219 19.1866L10.9988 12.5L4.31219 5.81336Z" fill="currentColor"/></svg>
           </span>
-          <span v-if="selectedActeur" class="trigger-tag">{{ selectedActeur }}</span>
+          <span v-if="selectedActor" class="actors-tag">{{ selectedActor }}</span>
         </div>
-        <span v-else-if="!showActeursDropdown">Acteurs</span>
+        <span v-else-if="!showActorsDropdown">Acteurs</span>
         <span v-else></span>
         <div class="trigger-actions">
-          <svg v-if="selectedActeur" class="clear-icon" @click.stop="clearActeur" width="13" height="13" viewBox="0 0 25 25" fill="none"><path d="M4.31219 5.81336C3.89594 5.39711 3.89594 4.72402 4.31219 4.31219C4.72844 3.90036 5.40154 3.89594 5.81336 4.31219L12.5 10.9988L19.1866 4.31219C19.6029 3.89594 20.276 3.89594 20.6878 4.31219C21.0996 4.72844 21.1041 5.40154 20.6878 5.81336L14.0012 12.5L20.6878 19.1866C21.1041 19.6029 21.1041 20.276 20.6878 20.6878C20.2716 21.0996 19.5985 21.1041 19.1866 20.6878L12.5 14.0012L5.81336 20.6878C5.39711 21.1041 4.72402 21.1041 4.31219 20.6878C3.90036 20.2716 3.89594 19.5985 4.31219 19.1866L10.9988 12.5L4.31219 5.81336Z" fill="currentColor"/></svg>
-          <svg class="icon-chevron" :class="{ rotated: showActeursDropdown }" width="15" height="15" viewBox="0 0 25 25" fill="none"><path d="M13.3592 17.6611C12.8846 18.113 12.1173 18.113 11.6477 17.6611L3.5702 9.96875C3.09564 9.51683 3.09564 8.78606 3.5702 8.33894C4.04475 7.89183 4.81212 7.88702 5.28163 8.33894L12.5009 15.2139L19.7202 8.33894C20.1948 7.88702 20.9622 7.88702 21.4317 8.33894C21.9012 8.79087 21.9062 9.52164 21.4317 9.96875L13.3541 17.6611L13.3592 17.6611Z" fill="currentColor"/></svg>
+          <svg v-if="selectedActor" class="icon-clear" @click.stop="clearActor" width="13" height="13" viewBox="0 0 25 25" fill="none"><path d="M4.31219 5.81336C3.89594 5.39711 3.89594 4.72402 4.31219 4.31219C4.72844 3.90036 5.40154 3.89594 5.81336 4.31219L12.5 10.9988L19.1866 4.31219C19.6029 3.89594 20.276 3.89594 20.6878 4.31219C21.0996 4.72844 21.1041 5.40154 20.6878 5.81336L14.0012 12.5L20.6878 19.1866C21.1041 19.6029 21.1041 20.276 20.6878 20.6878C20.2716 21.0996 19.5985 21.1041 19.1866 20.6878L12.5 14.0012L5.81336 20.6878C5.39711 21.1041 4.72402 21.1041 4.31219 20.6878C3.90036 20.2716 3.89594 19.5985 4.31219 19.1866L10.9988 12.5L4.31219 5.81336Z" fill="currentColor"/></svg>
+          <svg class="icon-chevron" :class="{ rotated: showActorsDropdown }" width="15" height="15" viewBox="0 0 25 25" fill="none"><path d="M13.3592 17.6611C12.8846 18.113 12.1173 18.113 11.6477 17.6611L3.5702 9.96875C3.09564 9.51683 3.09564 8.78606 3.5702 8.33894C4.04475 7.89183 4.81212 7.88702 5.28163 8.33894L12.5009 15.2139L19.7202 8.33894C20.1948 7.88702 20.9622 7.88702 21.4317 8.33894C21.9012 8.79087 21.9062 9.52164 21.4317 9.96875L13.3541 17.6611L13.3592 17.6611Z" fill="currentColor"/></svg>
         </div>
       </button>
 
-      <div v-if="showActeursDropdown" class="dropdown-menu" :class="{ 'dropdown-menu-search': acteursSearch || checkedEntities.length > 0 }">
-        <div class="dropdown-search">
-          <svg class="search-icon" width="12" height="12" viewBox="0 0 25 25" fill="none"><path d="M17.5296 10.3453C17.5296 8.43878 16.7725 6.6103 15.4247 5.26215C14.0769 3.914 12.2489 3.15662 10.3428 3.15662C8.43678 3.15662 6.60879 3.914 5.261 5.26215C3.91322 6.6103 3.15604 8.43878 3.15604 10.3453C3.15604 12.2519 3.91322 14.0804 5.261 15.4285C6.60879 16.7767 8.43678 17.5341 10.3428 17.5341C12.2489 17.5341 14.0769 16.7767 15.4247 15.4285C16.7725 14.0804 17.5296 12.2519 17.5296 10.3453ZM16.1417 17.6734C14.5516 18.9359 12.5348 19.6907 10.3428 19.6907C5.18182 19.6907 1 15.5078 1 10.3453C1 5.18294 5.18182 1 10.3428 1C15.5039 1 19.6857 5.18294 19.6857 10.3453C19.6857 12.5379 18.9311 14.5552 17.6689 16.1458L23.6833 22.1618C24.1056 22.5842 24.1056 23.2671 23.6833 23.6849C23.2611 24.1028 22.5784 24.1073 22.1606 23.6849L16.1417 17.6734Z" fill="currentColor"/></svg>
-          <input type="text" v-model="acteursSearch" placeholder="" />
-          <svg v-if="acteursSearch" class="search-clear" @click="acteursSearch = ''" width="12" height="12" viewBox="0 0 25 25" fill="none"><path d="M4.31219 5.81336C3.89594 5.39711 3.89594 4.72402 4.31219 4.31219C4.72844 3.90036 5.40154 3.89594 5.81336 4.31219L12.5 10.9988L19.1866 4.31219C19.6029 3.89594 20.276 3.89594 20.6878 4.31219C21.0996 4.72844 21.1041 5.40154 20.6878 5.81336L14.0012 12.5L20.6878 19.1866C21.1041 19.6029 21.1041 20.276 20.6878 20.6878C20.2716 21.0996 19.5985 21.1041 19.1866 20.6878L12.5 14.0012L5.81336 20.6878C5.39711 21.1041 4.72402 21.1041 4.31219 20.6878C3.90036 20.2716 3.89594 19.5985 4.31219 19.1866L10.9988 12.5L4.31219 5.81336Z" fill="currentColor"/></svg>
+      <div v-if="showActorsDropdown" class="menu" :class="{ 'menu--wide': actorsSearch || checkedEntities.length > 0 }">
+        <div class="menu-search">
+          <svg class="icon-search" width="12" height="12" viewBox="0 0 25 25" fill="none"><path d="M17.5296 10.3453C17.5296 8.43878 16.7725 6.6103 15.4247 5.26215C14.0769 3.914 12.2489 3.15662 10.3428 3.15662C8.43678 3.15662 6.60879 3.914 5.261 5.26215C3.91322 6.6103 3.15604 8.43878 3.15604 10.3453C3.15604 12.2519 3.91322 14.0804 5.261 15.4285C6.60879 16.7767 8.43678 17.5341 10.3428 17.5341C12.2489 17.5341 14.0769 16.7767 15.4247 15.4285C16.7725 14.0804 17.5296 12.2519 17.5296 10.3453ZM16.1417 17.6734C14.5516 18.9359 12.5348 19.6907 10.3428 19.6907C5.18182 19.6907 1 15.5078 1 10.3453C1 5.18294 5.18182 1 10.3428 1C15.5039 1 19.6857 5.18294 19.6857 10.3453C19.6857 12.5379 18.9311 14.5552 17.6689 16.1458L23.6833 22.1618C24.1056 22.5842 24.1056 23.2671 23.6833 23.6849C23.2611 24.1028 22.5784 24.1073 22.1606 23.6849L16.1417 17.6734Z" fill="currentColor"/></svg>
+          <input type="text" v-model="actorsSearch" placeholder="" />
+          <svg v-if="actorsSearch" class="icon-clear" @click="actorsSearch = ''" width="12" height="12" viewBox="0 0 25 25" fill="none"><path d="M4.31219 5.81336C3.89594 5.39711 3.89594 4.72402 4.31219 4.31219C4.72844 3.90036 5.40154 3.89594 5.81336 4.31219L12.5 10.9988L19.1866 4.31219C19.6029 3.89594 20.276 3.89594 20.6878 4.31219C21.0996 4.72844 21.1041 5.40154 20.6878 5.81336L14.0012 12.5L20.6878 19.1866C21.1041 19.6029 21.1041 20.276 20.6878 20.6878C20.2716 21.0996 19.5985 21.1041 19.1866 20.6878L12.5 14.0012L5.81336 20.6878C5.39711 21.1041 4.72402 21.1041 4.31219 20.6878C3.90036 20.2716 3.89594 19.5985 4.31219 19.1866L10.9988 12.5L4.31219 5.81336Z" fill="currentColor"/></svg>
         </div>
 
         <!-- Default view (no search, no selection) -->
-        <div v-if="!acteursSearch && checkedEntities.length === 0" class="dropdown-options">
-          <div v-for="category in acteursCategories" :key="category.id">
-            <button class="dropdown-section-dropdown" @click="toggleActeursCategory(category)">
+        <div v-if="!actorsSearch && checkedEntities.length === 0" class="menu-options">
+          <div v-for="category in actorsCategories" :key="category.id">
+            <button class="menu-section-toggle" @click="toggleActorsCategory(category)">
               <span>{{ category.label }}</span>
-              <svg class="icon-chevron blue-chevron" :class="{ expanded: category.expanded }" width="15" height="15" viewBox="0 0 25 25" fill="none">
+              <svg class="icon-chevron icon-chevron--blue" :class="{ expanded: category.expanded }" width="15" height="15" viewBox="0 0 25 25" fill="none">
                 <path d="M13.3592 17.6611C12.8846 18.113 12.1173 18.113 11.6477 17.6611L3.5702 9.96875C3.09564 9.51683 3.09564 8.78606 3.5702 8.33894C4.04475 7.89183 4.81212 7.88702 5.28163 8.33894L12.5009 15.2139L19.7202 8.33894C20.1948 7.88702 20.9622 7.88702 21.4317 8.33894C21.9012 8.79087 21.9062 9.52164 21.4317 9.96875L13.3541 17.6611L13.3592 17.6611Z" fill="currentColor"/>
               </svg>
             </button>
             <div v-if="isCategoryVisible(category)">
               <button
-                v-for="item in filteredActeursItems(category.items)"
+                v-for="item in filteredActorsItems(category.items)"
                 :key="getItemName(item)"
-                :class="[category.id === 'communities' ? 'dropdown-option-modularity' : 'dropdown-option', { active: getItemName(item) === selectedActeur }]"
-                @click="selectActeur(item)"
+                :class="['menu-option', { 'menu-option--flex': category.id === 'communities', active: getItemName(item) === selectedActor }]"
+                @click="selectActor(item)"
               >
-                <span v-if="category.id === 'communities'" class="modularity-dot" :style="{ backgroundColor: item.color }"></span>
-                <span v-html="highlightMatch(getItemName(item), acteursSearch)"></span>
+                <span v-if="category.id === 'communities'" class="actors-community-dot" :style="{ backgroundColor: item.color }"></span>
+                <span v-html="highlightMatch(getItemName(item), actorsSearch)"></span>
               </button>
             </div>
           </div>
         </div>
 
         <!-- Search view (two columns) -->
-        <div v-else class="dropdown-search-layout">
-          <div class="dropdown-search-columns">
-            <!-- Left: Entités -->
-            <div class="dropdown-search-left">
-              <div class="dropdown-section-header">
-                <span class="dropdown-section">Entités</span>
-                <svg v-if="checkedEntities.length > 0" class="reset-icon" @click="resetEntities" width="14" height="14" viewBox="0 0 25 25" fill="none">
+        <div v-else class="actors-search-layout">
+          <div class="actors-search-columns">
+            <!-- Left: Entities -->
+            <div class="actors-search-left">
+              <div class="menu-section-header">
+                <span class="menu-section">Entités</span>
+                <svg v-if="checkedEntities.length > 0" class="icon-reset" @click="resetEntities" width="14" height="14" viewBox="0 0 25 25" fill="none">
                   <path d="M4.5 12.5C4.5 8.08 8.08 4.5 12.5 4.5C15.14 4.5 17.48 5.78 18.97 7.75L16.5 10.25H22.5V4.25L20.28 6.47C18.39 4.09 15.62 2.5 12.5 2.5C6.98 2.5 2.5 6.98 2.5 12.5C2.5 18.02 6.98 22.5 12.5 22.5C17.16 22.5 21.07 19.28 22.14 14.94H20.06C19.04 18.16 16.04 20.5 12.5 20.5C8.08 20.5 4.5 16.92 4.5 12.5Z" fill="currentColor"/>
                 </svg>
               </div>
-              <div class="dropdown-options">
+              <div class="menu-options">
                 <button
                   v-for="entity in filteredEntities()"
                   :key="entity"
-                  class="dropdown-option-checkbox"
-                  :class="{ checked: checkedEntities.includes(entity) }"
+                  class="menu-option menu-option--flex"
+                  :class="{ active: checkedEntities.includes(entity) }"
                   @click="toggleEntity(entity)"
                 >
-                  <!-- Unchecked -->
-                  <svg v-if="!checkedEntities.includes(entity)" class="checkbox-icon" width="14" height="14" viewBox="0 0 12 12" fill="none">
+                  <svg v-if="!checkedEntities.includes(entity)" class="actors-checkbox" width="14" height="14" viewBox="0 0 12 12" fill="none">
                     <rect x="0.5" y="0.5" width="11" height="11" rx="1.5" stroke="#8D8D8D"/>
                   </svg>
-                  <!-- Checked -->
-                  <svg v-else class="checkbox-icon" width="14" height="14" viewBox="0 0 12 12" fill="none">
+                  <svg v-else class="actors-checkbox" width="14" height="14" viewBox="0 0 12 12" fill="none">
                     <rect width="12" height="12" rx="2" fill="#173EB7"/>
                     <path d="M9.2 3.6L5.8 8L3.8 6" stroke="white" stroke-width="0.72" stroke-linecap="round" stroke-linejoin="round"/>
                   </svg>
-                  <span v-html="highlightMatch(entity, acteursSearch)"></span>
+                  <span v-html="highlightMatch(entity, actorsSearch)"></span>
                 </button>
               </div>
             </div>
             <!-- Right: Categories -->
-            <div class="dropdown-search-right">
-              <div class="dropdown-options">
-                <div v-for="category in acteursCategories" :key="category.id">
-                  <button class="dropdown-section-dropdown" @click="toggleActeursCategory(category)">
+            <div class="actors-search-right">
+              <div class="menu-options">
+                <div v-for="category in actorsCategories" :key="category.id">
+                  <button class="menu-section-toggle" @click="toggleActorsCategory(category)">
                     <span>{{ category.label }}</span>
-                    <svg class="icon-chevron blue-chevron" :class="{ expanded: isCategoryVisible(category) }" width="15" height="15" viewBox="0 0 25 25" fill="none">
+                    <svg class="icon-chevron icon-chevron--blue" :class="{ expanded: isCategoryVisible(category) }" width="15" height="15" viewBox="0 0 25 25" fill="none">
                       <path d="M13.3592 17.6611C12.8846 18.113 12.1173 18.113 11.6477 17.6611L3.5702 9.96875C3.09564 9.51683 3.09564 8.78606 3.5702 8.33894C4.04475 7.89183 4.81212 7.88702 5.28163 8.33894L12.5009 15.2139L19.7202 8.33894C20.1948 7.88702 20.9622 7.88702 21.4317 8.33894C21.9012 8.79087 21.9062 9.52164 21.4317 9.96875L13.3541 17.6611L13.3592 17.6611Z" fill="currentColor"/>
                     </svg>
                   </button>
                   <div v-if="isCategoryVisible(category)">
                     <button
-                      v-for="item in filteredActeursItems(category.items)"
+                      v-for="item in filteredActorsItems(category.items)"
                       :key="getItemName(item)"
-                      :class="[category.id === 'communities' ? 'dropdown-option-modularity' : 'dropdown-option', { active: getItemName(item) === selectedActeur }]"
-                      @click="selectActeur(item)"
+                      :class="['menu-option', { 'menu-option--flex': category.id === 'communities', active: getItemName(item) === selectedActor }]"
+                      @click="selectActor(item)"
                     >
-                      <span v-if="category.id === 'communities'" class="modularity-dot" :style="{ backgroundColor: item.color }"></span>
-                      <span v-html="highlightMatch(getItemName(item), acteursSearch)"></span>
+                      <span v-if="category.id === 'communities'" class="actors-community-dot" :style="{ backgroundColor: item.color }"></span>
+                      <span v-html="highlightMatch(getItemName(item), actorsSearch)"></span>
                     </button>
                   </div>
                 </div>
               </div>
             </div>
           </div>
-          <div class="dropdown-search-footer">
-            <button v-if="checkedEntities.length >= 2" class="btn-save">
+          <div class="actors-search-footer">
+            <button v-if="checkedEntities.length >= 2" class="btn btn--outline btn--icon">
               <svg width="14" height="14" viewBox="0 0 25 25" fill="none"><path d="M5 4.25C4.5875 4.25 4.25 4.5875 4.25 5V20C4.25 20.4125 4.5875 20.75 5 20.75H20C20.4125 20.75 20.75 20.4125 20.75 20V8.62344C20.75 8.42656 20.6703 8.23438 20.5297 8.09375L17 4.55937V8.75C17 9.57969 16.3297 10.25 15.5 10.25H8C7.17031 10.25 6.5 9.57969 6.5 8.75V4.25H5ZM8.75 4.25V8H14.75V4.25H8.75ZM2 5C2 3.34531 3.34531 2 5 2H16.3766C17.1734 2 17.9375 2.31406 18.5 2.87656L22.1234 6.5C22.6859 7.0625 23 7.82656 23 8.62344V20C23 21.6547 21.6547 23 20 23H5C3.34531 23 2 21.6547 2 20V5ZM9.5 15.5C9.5 14.7044 9.81607 13.9413 10.3787 13.3787C10.9413 12.8161 11.7044 12.5 12.5 12.5C13.2956 12.5 14.0587 12.8161 14.6213 13.3787C15.1839 13.9413 15.5 14.7044 15.5 15.5C15.5 16.2956 15.1839 17.0587 14.6213 17.6213C14.0587 18.1839 13.2956 18.5 12.5 18.5C11.7044 18.5 10.9413 18.1839 10.3787 17.6213C9.81607 17.0587 9.5 16.2956 9.5 15.5Z" fill="currentColor"/></svg>
               Sauvegarder la liste
             </button>
-            <button class="btn-valider" :class="{ disabled: checkedEntities.length === 0 }" :disabled="checkedEntities.length === 0" @click="showActeursDropdown = false">Valider</button>
+            <button class="btn btn--primary" style="margin-left: auto" :class="{ 'btn--disabled': checkedEntities.length === 0 }" :disabled="checkedEntities.length === 0" @click="showActorsDropdown = false">Valider</button>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Sujets (Queries + Search + Language) -->
-    <div class="queries-bar" :class="{ focused: sujetsSearchFocused }">
-      <span v-if="sujetsSearchFocused || sujetsSearch" class="floating-label floating" :class="{ 'floating-active': sujetsSearchFocused }">Sujet</span>
-      <!-- Sujets Dropdown -->
-      <div class="queries-dropdown" :class="{ active: showQueryDropdown }">
-        <button class="queries-dropdown-trigger" :class="{ open: showQueryDropdown, selected: !!selectedQuery }" @click="toggleQueryDropdown">
-          <span v-if="!showQueryDropdown || selectedQuery" class="queries-dropdown-text">{{ selectedQuery || 'Queries' }}</span>
+    <!-- Topic (Queries + Search + Language) -->
+    <div class="topic-bar" :class="{ focused: topicSearchFocused }">
+      <span v-if="topicSearchFocused || topicSearch" class="floating-label floating" :class="{ 'floating-active': topicSearchFocused }">Sujet</span>
+      <!-- Query Dropdown -->
+      <div class="topic-query" :class="{ active: showQueryDropdown }">
+        <button class="topic-query-trigger" :class="{ open: showQueryDropdown, selected: !!selectedQuery }" @click="toggleQueryDropdown">
+          <span v-if="!showQueryDropdown || selectedQuery" class="topic-query-text">{{ selectedQuery || 'Queries' }}</span>
           <div class="trigger-actions">
-            <svg v-if="selectedQuery" class="clear-icon" @click.stop="clearQuery" width="13" height="13" viewBox="0 0 25 25" fill="none"><path d="M4.31219 5.81336C3.89594 5.39711 3.89594 4.72402 4.31219 4.31219C4.72844 3.90036 5.40154 3.89594 5.81336 4.31219L12.5 10.9988L19.1866 4.31219C19.6029 3.89594 20.276 3.89594 20.6878 4.31219C21.0996 4.72844 21.1041 5.40154 20.6878 5.81336L14.0012 12.5L20.6878 19.1866C21.1041 19.6029 21.1041 20.276 20.6878 20.6878C20.2716 21.0996 19.5985 21.1041 19.1866 20.6878L12.5 14.0012L5.81336 20.6878C5.39711 21.1041 4.72402 21.1041 4.31219 20.6878C3.90036 20.2716 3.89594 19.5985 4.31219 19.1866L10.9988 12.5L4.31219 5.81336Z" fill="currentColor"/></svg>
-            <svg class="icon-chevron blue-chevron" :class="{ rotated: showQueryDropdown }" width="15" height="15" viewBox="0 0 25 25" fill="none">
+            <svg v-if="selectedQuery" class="icon-clear" @click.stop="clearQuery" width="13" height="13" viewBox="0 0 25 25" fill="none"><path d="M4.31219 5.81336C3.89594 5.39711 3.89594 4.72402 4.31219 4.31219C4.72844 3.90036 5.40154 3.89594 5.81336 4.31219L12.5 10.9988L19.1866 4.31219C19.6029 3.89594 20.276 3.89594 20.6878 4.31219C21.0996 4.72844 21.1041 5.40154 20.6878 5.81336L14.0012 12.5L20.6878 19.1866C21.1041 19.6029 21.1041 20.276 20.6878 20.6878C20.2716 21.0996 19.5985 21.1041 19.1866 20.6878L12.5 14.0012L5.81336 20.6878C5.39711 21.1041 4.72402 21.1041 4.31219 20.6878C3.90036 20.2716 3.89594 19.5985 4.31219 19.1866L10.9988 12.5L4.31219 5.81336Z" fill="currentColor"/></svg>
+            <svg class="icon-chevron icon-chevron--blue" :class="{ rotated: showQueryDropdown }" width="15" height="15" viewBox="0 0 25 25" fill="none">
               <path d="M13.3592 17.6611C12.8846 18.113 12.1173 18.113 11.6477 17.6611L3.5702 9.96875C3.09564 9.51683 3.09564 8.78606 3.5702 8.33894C4.04475 7.89183 4.81212 7.88702 5.28163 8.33894L12.5009 15.2139L19.7202 8.33894C20.1948 7.88702 20.9622 7.88702 21.4317 8.33894C21.9012 8.79087 21.9062 9.52164 21.4317 9.96875L13.3541 17.6611L13.3592 17.6611Z" fill="currentColor"/>
             </svg>
           </div>
         </button>
-        <div v-if="showQueryDropdown" class="queries-dropdown-menu">
-          <div class="dropdown-search">
-            <svg class="search-icon" width="12" height="12" viewBox="0 0 25 25" fill="none"><path d="M17.5296 10.3453C17.5296 8.43878 16.7725 6.6103 15.4247 5.26215C14.0769 3.914 12.2489 3.15662 10.3428 3.15662C8.43678 3.15662 6.60879 3.914 5.261 5.26215C3.91322 6.6103 3.15604 8.43878 3.15604 10.3453C3.15604 12.2519 3.91322 14.0804 5.261 15.4285C6.60879 16.7767 8.43678 17.5341 10.3428 17.5341C12.2489 17.5341 14.0769 16.7767 15.4247 15.4285C16.7725 14.0804 17.5296 12.2519 17.5296 10.3453ZM16.1417 17.6734C14.5516 18.9359 12.5348 19.6907 10.3428 19.6907C5.18182 19.6907 1 15.5078 1 10.3453C1 5.18294 5.18182 1 10.3428 1C15.5039 1 19.6857 5.18294 19.6857 10.3453C19.6857 12.5379 18.9311 14.5552 17.6689 16.1458L23.6833 22.1618C24.1056 22.5842 24.1056 23.2671 23.6833 23.6849C23.2611 24.1028 22.5784 24.1073 22.1606 23.6849L16.1417 17.6734Z" fill="currentColor"/></svg>
+        <div v-if="showQueryDropdown" class="menu topic-query-menu">
+          <div class="menu-search">
+            <svg class="icon-search" width="12" height="12" viewBox="0 0 25 25" fill="none"><path d="M17.5296 10.3453C17.5296 8.43878 16.7725 6.6103 15.4247 5.26215C14.0769 3.914 12.2489 3.15662 10.3428 3.15662C8.43678 3.15662 6.60879 3.914 5.261 5.26215C3.91322 6.6103 3.15604 8.43878 3.15604 10.3453C3.15604 12.2519 3.91322 14.0804 5.261 15.4285C6.60879 16.7767 8.43678 17.5341 10.3428 17.5341C12.2489 17.5341 14.0769 16.7767 15.4247 15.4285C16.7725 14.0804 17.5296 12.2519 17.5296 10.3453ZM16.1417 17.6734C14.5516 18.9359 12.5348 19.6907 10.3428 19.6907C5.18182 19.6907 1 15.5078 1 10.3453C1 5.18294 5.18182 1 10.3428 1C15.5039 1 19.6857 5.18294 19.6857 10.3453C19.6857 12.5379 18.9311 14.5552 17.6689 16.1458L23.6833 22.1618C24.1056 22.5842 24.1056 23.2671 23.6833 23.6849C23.2611 24.1028 22.5784 24.1073 22.1606 23.6849L16.1417 17.6734Z" fill="currentColor"/></svg>
             <input type="text" v-model="querySearch" placeholder="" />
-            <svg v-if="querySearch" class="search-clear" @click="querySearch = ''" width="12" height="12" viewBox="0 0 25 25" fill="none"><path d="M4.31219 5.81336C3.89594 5.39711 3.89594 4.72402 4.31219 4.31219C4.72844 3.90036 5.40154 3.89594 5.81336 4.31219L12.5 10.9988L19.1866 4.31219C19.6029 3.89594 20.276 3.89594 20.6878 4.31219C21.0996 4.72844 21.1041 5.40154 20.6878 5.81336L14.0012 12.5L20.6878 19.1866C21.1041 19.6029 21.1041 20.276 20.6878 20.6878C20.2716 21.0996 19.5985 21.1041 19.1866 20.6878L12.5 14.0012L5.81336 20.6878C5.39711 21.1041 4.72402 21.1041 4.31219 20.6878C3.90036 20.2716 3.89594 19.5985 4.31219 19.1866L10.9988 12.5L4.31219 5.81336Z" fill="currentColor"/></svg>
+            <svg v-if="querySearch" class="icon-clear" @click="querySearch = ''" width="12" height="12" viewBox="0 0 25 25" fill="none"><path d="M4.31219 5.81336C3.89594 5.39711 3.89594 4.72402 4.31219 4.31219C4.72844 3.90036 5.40154 3.89594 5.81336 4.31219L12.5 10.9988L19.1866 4.31219C19.6029 3.89594 20.276 3.89594 20.6878 4.31219C21.0996 4.72844 21.1041 5.40154 20.6878 5.81336L14.0012 12.5L20.6878 19.1866C21.1041 19.6029 21.1041 20.276 20.6878 20.6878C20.2716 21.0996 19.5985 21.1041 19.1866 20.6878L12.5 14.0012L5.81336 20.6878C5.39711 21.1041 4.72402 21.1041 4.31219 20.6878C3.90036 20.2716 3.89594 19.5985 4.31219 19.1866L10.9988 12.5L4.31219 5.81336Z" fill="currentColor"/></svg>
           </div>
-          <span class="dropdown-section">Queries</span>
-          <div class="dropdown-options">
+          <span class="menu-section">Queries</span>
+          <div class="menu-options">
             <button
               v-for="option in filteredQueryOptions()"
               :key="option"
-              class="dropdown-option"
+              class="menu-option"
               :class="{ active: option === selectedQuery }"
               @click="selectQuery(option)"
               v-html="highlightMatch(option, querySearch)"
@@ -877,29 +871,29 @@ onUnmounted(() => {
       </div>
 
       <!-- Search bar -->
-      <svg class="queries-search-icon" width="15" height="15" viewBox="0 0 25 25" fill="none"><path d="M17.5296 10.3453C17.5296 8.43878 16.7725 6.6103 15.4247 5.26215C14.0769 3.914 12.2489 3.15662 10.3428 3.15662C8.43678 3.15662 6.60879 3.914 5.261 5.26215C3.91322 6.6103 3.15604 8.43878 3.15604 10.3453C3.15604 12.2519 3.91322 14.0804 5.261 15.4285C6.60879 16.7767 8.43678 17.5341 10.3428 17.5341C12.2489 17.5341 14.0769 16.7767 15.4247 15.4285C16.7725 14.0804 17.5296 12.2519 17.5296 10.3453ZM16.1417 17.6734C14.5516 18.9359 12.5348 19.6907 10.3428 19.6907C5.18182 19.6907 1 15.5078 1 10.3453C1 5.18294 5.18182 1 10.3428 1C15.5039 1 19.6857 5.18294 19.6857 10.3453C19.6857 12.5379 18.9311 14.5552 17.6689 16.1458L23.6833 22.1618C24.1056 22.5842 24.1056 23.2671 23.6833 23.6849C23.2611 24.1028 22.5784 24.1073 22.1606 23.6849L16.1417 17.6734Z" fill="currentColor"/></svg>
-      <input type="text" v-model="sujetsSearch" class="queries-search-input" placeholder="Chercher un mot-clé, une thématique ..." @focus="sujetsSearchFocused = true; closeAllDropdowns()" @blur="sujetsSearchFocused = false" @keydown.enter="submitSujetsSearch" />
-      <svg v-if="sujetsSearch" class="clear-icon" @click="sujetsSearch = ''" width="13" height="13" viewBox="0 0 25 25" fill="none"><path d="M4.31219 5.81336C3.89594 5.39711 3.89594 4.72402 4.31219 4.31219C4.72844 3.90036 5.40154 3.89594 5.81336 4.31219L12.5 10.9988L19.1866 4.31219C19.6029 3.89594 20.276 3.89594 20.6878 4.31219C21.0996 4.72844 21.1041 5.40154 20.6878 5.81336L14.0012 12.5L20.6878 19.1866C21.1041 19.6029 21.1041 20.276 20.6878 20.6878C20.2716 21.0996 19.5985 21.1041 19.1866 20.6878L12.5 14.0012L5.81336 20.6878C5.39711 21.1041 4.72402 21.1041 4.31219 20.6878C3.90036 20.2716 3.89594 19.5985 4.31219 19.1866L10.9988 12.5L4.31219 5.81336Z" fill="currentColor"/></svg>
+      <svg class="topic-search-icon" width="15" height="15" viewBox="0 0 25 25" fill="none"><path d="M17.5296 10.3453C17.5296 8.43878 16.7725 6.6103 15.4247 5.26215C14.0769 3.914 12.2489 3.15662 10.3428 3.15662C8.43678 3.15662 6.60879 3.914 5.261 5.26215C3.91322 6.6103 3.15604 8.43878 3.15604 10.3453C3.15604 12.2519 3.91322 14.0804 5.261 15.4285C6.60879 16.7767 8.43678 17.5341 10.3428 17.5341C12.2489 17.5341 14.0769 16.7767 15.4247 15.4285C16.7725 14.0804 17.5296 12.2519 17.5296 10.3453ZM16.1417 17.6734C14.5516 18.9359 12.5348 19.6907 10.3428 19.6907C5.18182 19.6907 1 15.5078 1 10.3453C1 5.18294 5.18182 1 10.3428 1C15.5039 1 19.6857 5.18294 19.6857 10.3453C19.6857 12.5379 18.9311 14.5552 17.6689 16.1458L23.6833 22.1618C24.1056 22.5842 24.1056 23.2671 23.6833 23.6849C23.2611 24.1028 22.5784 24.1073 22.1606 23.6849L16.1417 17.6734Z" fill="currentColor"/></svg>
+      <input type="text" v-model="topicSearch" class="topic-search-input" placeholder="Chercher un mot-clé, une thématique ..." @focus="topicSearchFocused = true; closeAllDropdowns()" @blur="topicSearchFocused = false" @keydown.enter="submitTopicSearch" />
+      <svg v-if="topicSearch" class="icon-clear" @click="topicSearch = ''" width="13" height="13" viewBox="0 0 25 25" fill="none"><path d="M4.31219 5.81336C3.89594 5.39711 3.89594 4.72402 4.31219 4.31219C4.72844 3.90036 5.40154 3.89594 5.81336 4.31219L12.5 10.9988L19.1866 4.31219C19.6029 3.89594 20.276 3.89594 20.6878 4.31219C21.0996 4.72844 21.1041 5.40154 20.6878 5.81336L14.0012 12.5L20.6878 19.1866C21.1041 19.6029 21.1041 20.276 20.6878 20.6878C20.2716 21.0996 19.5985 21.1041 19.1866 20.6878L12.5 14.0012L5.81336 20.6878C5.39711 21.1041 4.72402 21.1041 4.31219 20.6878C3.90036 20.2716 3.89594 19.5985 4.31219 19.1866L10.9988 12.5L4.31219 5.81336Z" fill="currentColor"/></svg>
 
       <!-- Language Dropdown -->
-      <div class="queries-language" :class="{ active: showLanguageDropdown }">
-        <button class="queries-language-trigger" :class="{ open: showLanguageDropdown, selected: !!selectedLanguage }" @click="toggleLanguageDropdown">
-          <img v-if="selectedLanguageOption" class="flag-circle flag-sm" :src="selectedLanguageOption.flag" :alt="selectedLanguageOption.label" />
+      <div class="topic-lang" :class="{ active: showLanguageDropdown }">
+        <button class="topic-lang-trigger" :class="{ open: showLanguageDropdown, selected: !!selectedLanguage }" @click="toggleLanguageDropdown">
+          <img v-if="selectedLanguageOption" class="flag-circle flag-circle--sm" :src="selectedLanguageOption.flag" :alt="selectedLanguageOption.label" />
           <svg v-else width="14" height="13" viewBox="0 0 14 13" fill="none"><path d="M11.1538 5.2H9.84615L7 13H8.30769L9 11.0686H12L12.6923 13H14L11.1538 5.2ZM9.46154 9.88L10.5385 6.90857L11.6154 9.88H9.46154ZM5.76923 7.05714C7 5.72 8 4.38286 8.61538 2.82286H10V1.63429H5.53846V0H4.46154V1.63429H0V2.74857H7.38462C6.84615 3.93714 6 5.05143 5 6.16571C4.30769 5.34857 3.69231 4.45714 3.23077 3.71429H2C2.46154 4.75429 3.30769 5.86857 4.23077 6.98286L2.38462 8.76571C2.15385 9.06286 1.84615 9.36 1.53846 9.65714L2.30769 10.4L3.23077 9.50857C3.84615 8.91429 4.46154 8.39429 5 7.8C5.61538 8.46857 6.30769 9.06286 6.92308 9.65714L7.38462 8.54286C6.84615 8.09714 6.30769 7.57714 5.76923 7.05714Z" fill="currentColor"/></svg>
         </button>
-        <div v-if="showLanguageDropdown" class="queries-language-menu">
-          <span class="dropdown-section">Langue des contenus</span>
-          <div class="dropdown-options">
+        <div v-if="showLanguageDropdown" class="menu topic-lang-menu">
+          <span class="menu-section">Langue des contenus</span>
+          <div class="menu-options">
             <button
               v-for="lang in languageOptions"
               :key="lang.code"
-              class="language-option"
+              class="menu-option menu-option--flex"
               :class="{ active: lang.code === selectedLanguage }"
               @click="selectLanguage(lang)"
             >
               <img class="flag-circle" :src="lang.flag" :alt="lang.label" />
-              <span class="language-option-label">{{ lang.label }}</span>
-              <svg v-if="lang.code === selectedLanguage" class="clear-icon" @click.stop="clearLanguage" width="13" height="13" viewBox="0 0 25 25" fill="none"><path d="M4.31219 5.81336C3.89594 5.39711 3.89594 4.72402 4.31219 4.31219C4.72844 3.90036 5.40154 3.89594 5.81336 4.31219L12.5 10.9988L19.1866 4.31219C19.6029 3.89594 20.276 3.89594 20.6878 4.31219C21.0996 4.72844 21.1041 5.40154 20.6878 5.81336L14.0012 12.5L20.6878 19.1866C21.1041 19.6029 21.1041 20.276 20.6878 20.6878C20.2716 21.0996 19.5985 21.1041 19.1866 20.6878L12.5 14.0012L5.81336 20.6878C5.39711 21.1041 4.72402 21.1041 4.31219 20.6878C3.90036 20.2716 3.89594 19.5985 4.31219 19.1866L10.9988 12.5L4.31219 5.81336Z" fill="currentColor"/></svg>
+              <span class="topic-lang-label">{{ lang.label }}</span>
+              <svg v-if="lang.code === selectedLanguage" class="icon-clear" @click.stop="clearLanguage" width="13" height="13" viewBox="0 0 25 25" fill="none"><path d="M4.31219 5.81336C3.89594 5.39711 3.89594 4.72402 4.31219 4.31219C4.72844 3.90036 5.40154 3.89594 5.81336 4.31219L12.5 10.9988L19.1866 4.31219C19.6029 3.89594 20.276 3.89594 20.6878 4.31219C21.0996 4.72844 21.1041 5.40154 20.6878 5.81336L14.0012 12.5L20.6878 19.1866C21.1041 19.6029 21.1041 20.276 20.6878 20.6878C20.2716 21.0996 19.5985 21.1041 19.1866 20.6878L12.5 14.0012L5.81336 20.6878C5.39711 21.1041 4.72402 21.1041 4.31219 20.6878C3.90036 20.2716 3.89594 19.5985 4.31219 19.1866L10.9988 12.5L4.31219 5.81336Z" fill="currentColor"/></svg>
             </button>
           </div>
         </div>
@@ -908,58 +902,54 @@ onUnmounted(() => {
 
     <!-- Date Picker -->
     <div ref="datePickerRef" class="datepicker" :class="{ compact: sidebarExpanded }">
-      <!-- Trigger -->
       <div class="datepicker-trigger" :class="{ active: dpIsOpen }" @click="dpToggleOpen">
         <span v-if="!sidebarExpanded" class="floating-label floating" :class="{ 'floating-active': dpIsOpen }">Période</span>
         <span v-if="!sidebarExpanded && dpDisplayValue" class="datepicker-value" :class="{ pending: dpHasChanged }">{{ dpDisplayValue }}</span>
         <span v-else-if="!sidebarExpanded" class="datepicker-placeholder">Sélectionner une période</span>
         <div class="trigger-actions">
-          <svg class="calendar-icon" width="15" height="15" viewBox="0 0 25 25" fill="none">
+          <svg class="datepicker-icon" width="15" height="15" viewBox="0 0 25 25" fill="none">
             <path d="M8.5 2V5.5M16.5 2V5.5M3.5 9.5H21.5M5.5 4H19.5C20.6046 4 21.5 4.89543 21.5 6V20C21.5 21.1046 20.6046 22 19.5 22H5.5C4.39543 22 3.5 21.1046 3.5 20V6C3.5 4.89543 4.39543 4 5.5 4Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
         </div>
       </div>
 
-      <!-- Popup -->
       <Transition name="dropdown">
         <div v-if="dpIsOpen" class="datepicker-popup">
           <!-- Presets -->
-          <div class="date-presets">
+          <div class="datepicker-presets">
             <template v-for="(group, gi) in dpShortcutGroups" :key="group.id">
               <div :class="group.id">
                 <button
                   v-for="shortcut in group.items"
                   :key="shortcut.id"
-                  class="dropdown-option"
+                  class="menu-option"
                   :class="{ active: dpActiveShortcut === shortcut.id }"
                   @click="dpApplyShortcut(shortcut)"
                 >
                   {{ shortcut.label }}
                 </button>
               </div>
-              <div v-if="gi < dpShortcutGroups.length - 1" class="presets-divider"></div>
+              <div v-if="gi < dpShortcutGroups.length - 1" class="datepicker-presets-divider"></div>
             </template>
           </div>
 
-          <!-- Date picker area -->
+          <!-- Calendars -->
           <div class="datepicker-main">
-            <!-- Calendars -->
-            <div class="calendars-row">
-              <!-- Left calendar -->
-              <div class="calendar">
-                <div class="calendar-nav">
-                  <button class="nav-arrow" @click="dpLeftPrev">
+            <div class="datepicker-calendars">
+              <div class="datepicker-calendar">
+                <div class="datepicker-calendar-nav">
+                  <button class="datepicker-nav-arrow" @click="dpLeftPrev">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M14 7L9 12L14 17" stroke="#595959" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
                   </button>
-                  <span class="calendar-month-title">{{ dpMonthNames[dpLeftMonth] }} {{ dpLeftYear }}</span>
-                  <button class="nav-arrow" @click="dpLeftNext">
+                  <span class="datepicker-month-title">{{ dpMonthNames[dpLeftMonth] }} {{ dpLeftYear }}</span>
+                  <button class="datepicker-nav-arrow" @click="dpLeftNext">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M10 7L15 12L10 17" stroke="#595959" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
                   </button>
                 </div>
-                <div class="week-row">
-                  <span v-for="name in dpDayNames" :key="name" class="week-day-label">{{ name }}</span>
+                <div class="datepicker-weekdays">
+                  <span v-for="name in dpDayNames" :key="name" class="datepicker-weekday">{{ name }}</span>
                 </div>
-                <div class="days-grid">
+                <div class="datepicker-days">
                   <button
                     v-for="(dayObj, i) in dpLeftCalendarDays"
                     :key="'l' + i"
@@ -972,21 +962,20 @@ onUnmounted(() => {
                 </div>
               </div>
 
-              <!-- Right calendar -->
-              <div class="calendar">
-                <div class="calendar-nav">
-                  <button class="nav-arrow" @click="dpRightPrev">
+              <div class="datepicker-calendar">
+                <div class="datepicker-calendar-nav">
+                  <button class="datepicker-nav-arrow" @click="dpRightPrev">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M14 7L9 12L14 17" stroke="#595959" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
                   </button>
-                  <span class="calendar-month-title">{{ dpMonthNames[dpRightMonth] }} {{ dpRightYear }}</span>
-                  <button class="nav-arrow" @click="dpRightNext">
+                  <span class="datepicker-month-title">{{ dpMonthNames[dpRightMonth] }} {{ dpRightYear }}</span>
+                  <button class="datepicker-nav-arrow" @click="dpRightNext">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M10 7L15 12L10 17" stroke="#595959" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
                   </button>
                 </div>
-                <div class="week-row">
-                  <span v-for="name in dpDayNames" :key="name" class="week-day-label">{{ name }}</span>
+                <div class="datepicker-weekdays">
+                  <span v-for="name in dpDayNames" :key="name" class="datepicker-weekday">{{ name }}</span>
                 </div>
-                <div class="days-grid">
+                <div class="datepicker-days">
                   <button
                     v-for="(dayObj, i) in dpRightCalendarDays"
                     :key="'r' + i"
@@ -1001,42 +990,42 @@ onUnmounted(() => {
             </div>
 
             <!-- Toggle row -->
-            <div class="toggle-row">
-              <div class="toggle-left">
-                <span class="toggle-label" :class="{ disabled: !dpIsSingleDay }">Sélectionner un horaire</span>
-                <button class="toggle-switch" :class="{ on: dpShowTime, disabled: !dpIsSingleDay }" @click="dpToggleTime">
-                  <span class="toggle-knob"></span>
+            <div class="datepicker-toggle-row">
+              <div class="datepicker-toggle-left">
+                <span class="datepicker-toggle-label" :class="{ disabled: !dpIsSingleDay }">Sélectionner un horaire</span>
+                <button class="datepicker-switch" :class="{ on: dpShowTime, disabled: !dpIsSingleDay }" @click="dpToggleTime">
+                  <span class="datepicker-switch-knob"></span>
                 </button>
               </div>
-              <div v-if="dpShowTime && dpIsSingleDay" class="time-range">
-                <div class="time-dropdown">
-                  <button class="time-pill" @click="dpToggleTimeStart">
+              <div v-if="dpShowTime && dpIsSingleDay" class="datepicker-time-range">
+                <div class="datepicker-time-dropdown">
+                  <button class="datepicker-time-pill" @click="dpToggleTimeStart">
                     <span>{{ dpTimeStart }}</span>
-                    <svg class="time-chevron" width="15" height="15" viewBox="0 0 25 25" fill="none"><path d="M13.3592 17.6611C12.8846 18.113 12.1173 18.113 11.6477 17.6611L3.5702 9.96875C3.09564 9.51683 3.09564 8.78606 3.5702 8.33894C4.04475 7.89183 4.81212 7.88702 5.28163 8.33894L12.5009 15.2139L19.7202 8.33894C20.1948 7.88702 20.9622 7.88702 21.4317 8.33894C21.9012 8.79087 21.9062 9.52164 21.4317 9.96875L13.3541 17.6611L13.3592 17.6611Z" fill="currentColor"/></svg>
+                    <svg class="icon-chevron" width="15" height="15" viewBox="0 0 25 25" fill="none"><path d="M13.3592 17.6611C12.8846 18.113 12.1173 18.113 11.6477 17.6611L3.5702 9.96875C3.09564 9.51683 3.09564 8.78606 3.5702 8.33894C4.04475 7.89183 4.81212 7.88702 5.28163 8.33894L12.5009 15.2139L19.7202 8.33894C20.1948 7.88702 20.9622 7.88702 21.4317 8.33894C21.9012 8.79087 21.9062 9.52164 21.4317 9.96875L13.3541 17.6611L13.3592 17.6611Z" fill="currentColor"/></svg>
                   </button>
-                  <div v-if="dpShowTimeStartDropdown" class="time-options" @click.stop>
-                    <button v-for="t in dpTimeOptions" :key="'ts'+t" class="time-option" :class="{ active: t === dpTimeStart }" @click="dpSelectTimeStart(t)">{{ t }}</button>
+                  <div v-if="dpShowTimeStartDropdown" class="menu datepicker-time-menu" @click.stop>
+                    <button v-for="t in dpTimeOptions" :key="'ts'+t" class="menu-option menu-option--small" :class="{ active: t === dpTimeStart }" @click="dpSelectTimeStart(t)">{{ t }}</button>
                   </div>
                 </div>
-                <span class="time-separator">-</span>
-                <div class="time-dropdown">
-                  <button class="time-pill" @click="dpToggleTimeEnd">
+                <span class="datepicker-time-separator">-</span>
+                <div class="datepicker-time-dropdown">
+                  <button class="datepicker-time-pill" @click="dpToggleTimeEnd">
                     <span>{{ dpTimeEnd }}</span>
-                    <svg class="time-chevron" width="15" height="15" viewBox="0 0 25 25" fill="none"><path d="M13.3592 17.6611C12.8846 18.113 12.1173 18.113 11.6477 17.6611L3.5702 9.96875C3.09564 9.51683 3.09564 8.78606 3.5702 8.33894C4.04475 7.89183 4.81212 7.88702 5.28163 8.33894L12.5009 15.2139L19.7202 8.33894C20.1948 7.88702 20.9622 7.88702 21.4317 8.33894C21.9012 8.79087 21.9062 9.52164 21.4317 9.96875L13.3541 17.6611L13.3592 17.6611Z" fill="currentColor"/></svg>
+                    <svg class="icon-chevron" width="15" height="15" viewBox="0 0 25 25" fill="none"><path d="M13.3592 17.6611C12.8846 18.113 12.1173 18.113 11.6477 17.6611L3.5702 9.96875C3.09564 9.51683 3.09564 8.78606 3.5702 8.33894C4.04475 7.89183 4.81212 7.88702 5.28163 8.33894L12.5009 15.2139L19.7202 8.33894C20.1948 7.88702 20.9622 7.88702 21.4317 8.33894C21.9012 8.79087 21.9062 9.52164 21.4317 9.96875L13.3541 17.6611L13.3592 17.6611Z" fill="currentColor"/></svg>
                   </button>
-                  <div v-if="dpShowTimeEndDropdown" class="time-options" @click.stop>
-                    <button v-for="t in dpTimeOptions" :key="'te'+t" class="time-option" :class="{ active: t === dpTimeEnd, disabled: t <= dpTimeStart }" :disabled="t <= dpTimeStart" @click="dpSelectTimeEnd(t)">{{ t }}</button>
+                  <div v-if="dpShowTimeEndDropdown" class="menu datepicker-time-menu" @click.stop>
+                    <button v-for="t in dpTimeOptions" :key="'te'+t" class="menu-option menu-option--small" :class="{ active: t === dpTimeEnd, disabled: t <= dpTimeStart }" :disabled="t <= dpTimeStart" @click="dpSelectTimeEnd(t)">{{ t }}</button>
                   </div>
                 </div>
               </div>
             </div>
 
-            <!-- Footer buttons -->
-            <div class="footer-row">
-              <button class="btn-outline" @click="dpResetSelection">Effacer</button>
-              <div class="footer-right">
-                <button class="btn-outline" @click="dpCancelSelection">Annuler</button>
-                <button class="btn-primary" :class="{ disabled: !dpTempStart }" :disabled="!dpTempStart" @click="dpApplySelection">Valider</button>
+            <!-- Footer -->
+            <div class="datepicker-footer">
+              <button class="btn btn--outline" @click="dpResetSelection">Effacer</button>
+              <div class="datepicker-footer-right">
+                <button class="btn btn--outline" @click="dpCancelSelection">Annuler</button>
+                <button class="btn btn--primary" :class="{ 'btn--disabled': !dpTempStart }" :disabled="!dpTempStart" @click="dpApplySelection">Valider</button>
               </div>
             </div>
           </div>
@@ -1047,124 +1036,8 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-.topbar {
-  display: flex;
-  align-items: center;
-  padding: 20px 30px;
-  flex-direction: row;
-  gap: 10px;
-}
-
-.topbar-item {
-  background: var(--color-white);
-  border-radius: 8px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-}
-
-/* Dropdown */
-.dropdown {
-  position: relative;
-  width: 240px;
-  border: 1px solid var(--color-light-grey);
-  transition: border-color 0.2s ease;
-}
-
-.dropdown.active {
-  border-color: var(--color-blue);
-}
-
-.dropdown-trigger {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  height: 100%;
-  padding: 10px;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  font-size: 16px;
-  font-weight: 500;
-  font-family: 'Roboto', sans-serif;
-  color: var(--color-black);
-  gap: 5px;
-}
-
-.trigger-actions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.trigger-tags {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  overflow-x: auto;
-  overflow-y: hidden;
-  flex: 1;
-  min-width: 0;
-  scrollbar-width: none;
-}
-
-.trigger-tags::-webkit-scrollbar {
-  display: none;
-}
-
-.trigger-tag-checkbox {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 14px;
-  white-space: nowrap;
-  background: var(--color-active);
-  padding: 0 5px;
-  border-radius: 4px;
-  height: 26px;
-  flex-shrink: 0;
-}
-
-.trigger-tag {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-weight: 500;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-.tag-remove {
-  cursor: pointer;
-  flex-shrink: 0;
-  height: 12px;
-  width: 12px;
-}
-
-.clear-icon {
-  color: var(--color-black);
-  cursor: pointer;
-}
-
-.icon-chevron {
-  width: 15px;
-  height: 15px;
-  transition: transform 0.2s ease;
-  color: var(--color-black);
-  flex-shrink: 0;
-}
-
-.icon-chevron.rotated,
-.icon-chevron.expanded {
-  transform: rotate(180deg);
-}
-
-.blue-chevron {
-  color: var(--color-blue);
-}
-
-.dropdown-menu {
+/* ── Shared: Menu ── */
+.menu {
   position: absolute;
   top: calc(100% + 5px);
   left: 0;
@@ -1179,8 +1052,8 @@ onUnmounted(() => {
   gap: 5px;
   max-height: 300px;
 }
-
-.dropdown-search {
+.menu--wide { min-width: 430px; max-height: 350px; }
+.menu-search {
   display: flex;
   align-items: center;
   gap: 5px;
@@ -1189,8 +1062,7 @@ onUnmounted(() => {
   border: 1px solid var(--color-light-grey);
   border-radius: 6px;
 }
-
-.dropdown-search input {
+.menu-search input {
   width: 100%;
   min-width: 0;
   border: none;
@@ -1200,19 +1072,43 @@ onUnmounted(() => {
   background: transparent;
   font-family: 'Roboto', sans-serif;
 }
-
-:deep(.highlight-match) {
-  font-weight: 600;
-}
-
-.dropdown-options {
+.menu-options {
   overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
-
-.dropdown-section-dropdown {
+.menu-option {
+  display: block;
+  width: 100%;
+  padding: 8px;
+  border: none;
+  background: var(--color-white);
+  text-align: left;
+  cursor: pointer;
+  font-size: 16px;
+  color: var(--color-black);
+  font-family: 'Roboto', sans-serif;
+  border-radius: 4px;
+  transition: background-color 0.15s ease;
+}
+.menu-option:hover { background-color: var(--color-background); }
+.menu-option.active {
+  background-color: var(--color-active);
+  color: var(--color-blue);
+  font-weight: 500;
+}
+.menu-option.disabled { cursor: default; pointer-events: none; opacity: 0.5; }
+.menu-option--flex { display: flex; align-items: center; gap: 8px; }
+.menu-option--small { padding: 6px 10px; font-size: 14px; background: transparent; }
+.menu-section {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-blue);
+  font-family: 'Roboto', sans-serif;
+  padding: 8px;
+}
+.menu-section-toggle {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1229,72 +1125,56 @@ onUnmounted(() => {
   border-radius: 4px;
   transition: background-color 0.15s ease;
 }
-
-.dropdown-section-dropdown:hover {
-  background-color: var(--color-background);
-}
-
-.dropdown-option {
-  display: block;
-  width: 100%;
-  padding: 8px;
-  border: none;
-  background: var(--color-white);
-  text-align: left;
-  cursor: pointer;
-  font-size: 16px;
-  color: var(--color-black);
-  font-family: 'Roboto', sans-serif;
-  border-radius: 4px;
-  transition: background-color 0.15s ease;
-}
-
-.dropdown-option:hover {
-  background-color: var(--color-background);
-}
-
-.dropdown-option.active,
-.dropdown-option-checkbox.checked {
-  background-color: var(--color-active);
-  color: var(--color-blue);
-  font-weight: 500;
-}
-
-.dropdown-option-modularity {
+.menu-section-toggle:hover { background-color: var(--color-background); }
+.menu-section-header {
   display: flex;
   align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 8px;
-  border: none;
-  background: var(--color-white);
-  text-align: left;
-  cursor: pointer;
-  font-size: 16px;
+  justify-content: space-between;
+}
+:deep(.highlight-match) { font-weight: 600; }
+
+/* ── Shared: Icons ── */
+.icon-chevron {
+  width: 15px;
+  height: 15px;
+  transition: transform 0.2s ease;
   color: var(--color-black);
-  font-family: 'Roboto', sans-serif;
-  border-radius: 4px;
-  transition: background-color 0.15s ease;
-}
-
-.dropdown-option-modularity:hover {
-  background-color: var(--color-background);
-}
-
-.dropdown-option-modularity.active {
-  background-color: var(--color-active);
-  color: var(--color-blue);
-  font-weight: 600;
-}
-
-.modularity-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
   flex-shrink: 0;
 }
+.icon-chevron.rotated,
+.icon-chevron.expanded { transform: rotate(180deg); }
+.icon-chevron--blue { color: var(--color-blue); }
+.icon-clear { color: var(--color-black); cursor: pointer; flex-shrink: 0; }
+.icon-search { flex-shrink: 0; color: var(--color-medium-grey); }
+.icon-reset { color: var(--color-blue); cursor: pointer; }
 
-/* Floating Label */
+/* ── Shared: Buttons ── */
+.btn {
+  padding: 10px 15px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: 'Roboto', sans-serif;
+  cursor: pointer;
+}
+.btn--primary {
+  background: var(--color-blue);
+  color: var(--color-white);
+  border: none;
+  transition: opacity 0.15s ease;
+}
+.btn--primary:hover:not(.btn--disabled) { opacity: 0.9; }
+.btn--outline {
+  background: transparent;
+  color: var(--color-blue);
+  border: 1px solid var(--color-blue);
+  transition: background-color 0.15s ease;
+}
+.btn--outline:hover:not(.btn--disabled) { background-color: #EFF6FF; }
+.btn--icon { display: flex; align-items: center; gap: 5px; }
+.btn--disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ── Shared: Floating Label ── */
 .floating-label {
   position: absolute;
   right: 0;
@@ -1312,7 +1192,6 @@ onUnmounted(() => {
   transition: all 0.2s ease;
   z-index: 102;
 }
-
 .floating-label.floating {
   right: auto;
   left: 10px;
@@ -1325,48 +1204,111 @@ onUnmounted(() => {
   background: var(--color-white);
   border-left: none;
 }
+.floating-label.floating-active { color: var(--color-blue); }
 
-.floating-label.floating-active {
-  color: var(--color-blue);
-}
-
-.search-icon {
+/* ── Shared: Flag ── */
+.flag-circle {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
   flex-shrink: 0;
-  color: var(--color-medium-grey);
+  object-fit: cover;
+  overflow: hidden;
 }
+.flag-circle--sm { width: 15px; height: 15px; }
 
-.search-clear {
-  flex-shrink: 0;
+/* ── Layout ── */
+.topbar {
+  display: flex;
+  align-items: center;
+  padding: 20px 30px;
+  gap: 10px;
+}
+.topbar-item {
+  background: var(--color-white);
+  border-radius: 8px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+}
+.topbar-dropdown {
+  position: relative;
+  width: 240px;
+  border: 1px solid var(--color-light-grey);
+  transition: border-color 0.2s ease;
+}
+.topbar-dropdown.active { border-color: var(--color-blue); }
+.topbar-dropdown-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: 100%;
+  padding: 10px;
+  border: none;
+  background: transparent;
   cursor: pointer;
-  color: var(--color-medium-grey);
+  font-size: 16px;
+  font-weight: 500;
+  font-family: 'Roboto', sans-serif;
+  color: var(--color-black);
+  gap: 5px;
 }
+.trigger-actions { display: flex; align-items: center; gap: 6px; }
 
-.search-clear:hover {
-  opacity: 1;
+/* ── Actors ── */
+.actors-tags {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  flex: 1;
+  min-width: 0;
+  scrollbar-width: none;
 }
-
-/* Search layout */
-.dropdown-menu-search {
-  min-width: 430px;
-  max-height: 350px;
+.actors-tags::-webkit-scrollbar { display: none; }
+.actors-tag--checkbox {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  white-space: nowrap;
+  background: var(--color-active);
+  padding: 0 5px;
+  border-radius: 4px;
+  height: 26px;
+  flex-shrink: 0;
 }
-
-.dropdown-search-layout {
+.actors-tag {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 500;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.actors-community-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.actors-checkbox { flex-shrink: 0; }
+.actors-search-layout {
   display: flex;
   flex-direction: column;
   gap: 10px;
   overflow: hidden;
   flex: 1;
 }
-
-.dropdown-search-columns {
+.actors-search-columns {
   display: flex;
   gap: 10px;
   overflow: hidden;
   flex: 1;
 }
-
-.dropdown-search-left {
+.actors-search-left {
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -1375,108 +1317,21 @@ onUnmounted(() => {
   border-right: 1px solid var(--color-light-grey);
   padding-right: 10px;
 }
-
-.dropdown-search-right {
+.actors-search-right {
   flex: 1;
   display: flex;
   flex-direction: column;
   overflow-y: auto;
 }
-
-.dropdown-section-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.dropdown-section {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--color-blue);
-  font-family: 'Roboto', sans-serif;
-  padding: 8px;
-}
-
-.reset-icon {
-  color: var(--color-blue);
-  cursor: pointer;
-}
-
-.dropdown-option-checkbox {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 8px;
-  border: none;
-  background: var(--color-white);
-  text-align: left;
-  cursor: pointer;
-  font-size: 16px;
-  color: var(--color-black);
-  font-family: 'Roboto', sans-serif;
-  border-radius: 4px;
-  transition: background-color 0.15s ease;
-}
-
-.dropdown-option-checkbox:hover {
-  background-color: var(--color-background);
-}
-
-.checkbox-icon {
-  flex-shrink: 0;
-}
-
-.dropdown-search-footer {
+.actors-search-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 5px;
 }
 
-.btn-valider {
-  margin-left: auto;
-  padding: 10px 15px;
-  background: var(--color-blue);
-  color: var(--color-white);
-  border: none;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 500;
-  font-family: 'Roboto', sans-serif;
-  cursor: pointer;
-}
-
-.btn-valider:hover:not(.disabled) {
-  opacity: 0.9;
-}
-
-.btn-valider.disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.btn-save {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  padding: 10px 15px;
-  background: transparent;
-  color: var(--color-blue);
-  border: 1px solid var(--color-blue);
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 500;
-  font-family: 'Roboto';
-  cursor: pointer;
-}
-
-.btn-save:hover {
-  opacity: 0.8;
-}
-
-/* Queries bar */
-.queries-bar {
+/* ── Topic ── */
+.topic-bar {
   position: relative;
   flex: 1;
   min-width: 0;
@@ -1489,35 +1344,9 @@ onUnmounted(() => {
   border: 1px solid var(--color-light-grey);
   border-radius: 8px;
 }
-
-.queries-bar.focused {
-  border-color: var(--color-blue);
-}
-
-.queries-bar-label {
-  position: absolute;
-  top: 0;
-  left: 10px;
-  transform: translateY(-50%);
-  padding: 0 1px;
-  background: var(--color-white);
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--color-blue);
-  font-family: 'Roboto', sans-serif;
-}
-
-.queries-bar-label.grey {
-  color: var(--color-dark-grey);
-}
-
-/* Sujets dropdown inside queries */
-.queries-dropdown {
-  position: relative;
-  flex-shrink: 0;
-}
-
-.queries-dropdown-trigger {
+.topic-bar.focused { border-color: var(--color-blue); }
+.topic-query { position: relative; flex-shrink: 0; }
+.topic-query-trigger {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1533,16 +1362,9 @@ onUnmounted(() => {
   font-family: 'Roboto', sans-serif;
   color: var(--color-blue);
 }
-
-.queries-dropdown-trigger.selected {
-  color: var(--color-black);
-}
-
-.queries-dropdown-trigger.selected .icon-chevron {
-  color: var(--color-black);
-}
-
-.queries-dropdown-trigger.selected .queries-dropdown-text {
+.topic-query-trigger.selected { color: var(--color-black); }
+.topic-query-trigger.selected .icon-chevron { color: var(--color-black); }
+.topic-query-trigger.selected .topic-query-text {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1550,40 +1372,11 @@ onUnmounted(() => {
   flex: 1;
   text-align: left;
 }
-
-.queries-dropdown-trigger.open {
-  border: 1px solid var(--color-blue);
-  justify-content: flex-end;
-}
-
-.queries-dropdown-trigger.open.selected {
-  justify-content: space-between;
-}
-
-
-.queries-dropdown-menu {
-  position: absolute;
-  top: calc(100% + 5px);
-  left: 0;
-  width: 200px;
-  background: var(--color-white);
-  border-radius: 8px;
-  border: 1px solid var(--color-light-grey);
-  z-index: 100;
-  padding: 5px;
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  max-height: 300px;
-}
-
-/* Queries search */
-.queries-search-icon {
-  flex-shrink: 0;
-  color: var(--color-dark-grey);
-}
-
-.queries-search-input {
+.topic-query-trigger.open { border: 1px solid var(--color-blue); justify-content: flex-end; }
+.topic-query-trigger.open.selected { justify-content: space-between; }
+.topic-query-menu { left: 0; right: auto; width: 200px; }
+.topic-search-icon { flex-shrink: 0; color: var(--color-dark-grey); }
+.topic-search-input {
   flex: 1;
   min-width: 0;
   border: none;
@@ -1594,19 +1387,9 @@ onUnmounted(() => {
   background: transparent;
   font-family: 'Roboto', sans-serif;
 }
-
-.queries-search-input::placeholder {
-  color: var(--color-medium-grey);
-  font-style: italic;
-}
-
-/* Language dropdown */
-.queries-language {
-  position: relative;
-  flex-shrink: 0;
-}
-
-.queries-language-trigger {
+.topic-search-input::placeholder { color: var(--color-medium-grey); font-style: italic; }
+.topic-lang { position: relative; flex-shrink: 0; }
+.topic-lang-trigger {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1618,81 +1401,13 @@ onUnmounted(() => {
   cursor: pointer;
   color: var(--color-blue);
 }
+.topic-lang-trigger.open { border-color: var(--color-blue); }
+.topic-lang-menu { left: auto; right: 0; width: 176px; max-height: 200px; gap: 2px; }
+.topic-lang-menu .menu-option.active .icon-clear { color: var(--color-blue); }
+.topic-lang-label { flex: 1; }
 
-.queries-language-trigger.open {
-  border-color: var(--color-blue);
-}
-
-.queries-language-menu {
-  position: absolute;
-  top: calc(100% + 10px);
-  right: 0;
-  width: 176px;
-  max-height: 200px;
-  background: var(--color-white);
-  border-radius: 8px;
-  border: 1px solid var(--color-light-grey);
-  z-index: 100;
-  padding: 5px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.language-option {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 8px;
-  border: none;
-  background: var(--color-white);
-  text-align: left;
-  cursor: pointer;
-  font-size: 16px;
-  color: var(--color-black);
-  font-family: 'Roboto', sans-serif;
-  border-radius: 4px;
-  transition: background-color 0.15s ease;
-}
-
-.language-option:hover {
-  background-color: var(--color-background);
-}
-
-.language-option.active {
-  background-color: var(--color-active);
-  color: var(--color-blue);
-  font-weight: 500;
-}
-
-.language-option.active .clear-icon {
-  color: var(--color-blue);
-}
-
-.language-option-label {
-  flex: 1;
-}
-
-.flag-circle {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  object-fit: cover;
-  overflow: hidden;
-}
-.flag-circle.flag-sm {
-  width: 15px;
-  height: 15px;
-}
-
-/* ── Date Picker ── */
-.datepicker {
-  position: relative;
-  flex-shrink: 0;
-}
-
+/* ── DatePicker ── */
+.datepicker { position: relative; flex-shrink: 0; }
 .datepicker-trigger {
   position: relative;
   display: flex;
@@ -1707,11 +1422,7 @@ onUnmounted(() => {
   cursor: pointer;
   transition: border-color 0.2s ease;
 }
-
-.datepicker-trigger.active {
-  border-color: var(--color-blue);
-}
-
+.datepicker-trigger.active { border-color: var(--color-blue); }
 .datepicker-value {
   font-size: 16px;
   font-weight: 500;
@@ -1719,46 +1430,27 @@ onUnmounted(() => {
   font-family: 'Roboto', sans-serif;
   white-space: nowrap;
 }
-
-.datepicker-value.pending {
-  color: var(--color-dark-grey);
-}
-
+.datepicker-value.pending { color: var(--color-dark-grey); }
 .datepicker-placeholder {
   font-size: 16px;
-  font-weight: 400;
   color: var(--color-medium-grey);
   font-family: 'Roboto', sans-serif;
   white-space: nowrap;
 }
-
-.calendar-icon {
-  color: var(--color-black);
-  flex-shrink: 0;
-}
-
-.datepicker.compact .datepicker-trigger {
-  width: auto;
-  padding: 0 12px;
-  gap: 0;
-}
-
-/* ── Popup ── */
+.datepicker-icon { color: var(--color-black); flex-shrink: 0; }
+.datepicker.compact .datepicker-trigger { width: auto; padding: 0 12px; gap: 0; }
 .datepicker-popup {
   position: absolute;
   top: calc(100% + 5px);
   right: 0;
   display: flex;
-  flex-direction: row;
   height: 472px;
   background: var(--color-white);
   border-radius: 16px;
   box-shadow: 0 3px 5px rgba(0, 0, 0, 0.08);
   z-index: 200;
 }
-
-/* ── Sidebar shortcuts ── */
-.date-presets {
+.datepicker-presets {
   display: flex;
   flex-direction: column;
   width: 170px;
@@ -1768,45 +1460,32 @@ onUnmounted(() => {
   flex-shrink: 0;
   overflow-x: scroll;
 }
-
-.presets-divider {
+.datepicker-presets-divider {
   width: 100%;
   height: 1px;
   background: var(--color-light-grey);
   flex-shrink: 0;
 }
-
-/* ── Main date picker area ── */
 .datepicker-main {
   display: flex;
   flex-direction: column;
   padding: 20px 30px;
   gap: 20px;
 }
-
-/* ── Calendars row ── */
-.calendars-row {
-  display: flex;
-  flex-direction: row;
-  gap: 30px;
-}
-
-.calendar {
+.datepicker-calendars { display: flex; gap: 30px; }
+.datepicker-calendar {
   display: flex;
   flex-direction: column;
   width: 281px;
   gap: 20px;
 }
-
-/* ── Calendar nav ── */
-.calendar-nav {
+.datepicker-calendar-nav {
   display: flex;
   align-items: center;
   justify-content: space-between;
   height: 40px;
 }
-
-.nav-arrow {
+.datepicker-nav-arrow {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1819,27 +1498,16 @@ onUnmounted(() => {
   padding: 0 8px;
   transition: background-color 0.15s ease;
 }
-
-.nav-arrow:hover {
-  background-color: var(--color-background);
-}
-
-.calendar-month-title {
+.datepicker-nav-arrow:hover { background-color: var(--color-background); }
+.datepicker-month-title {
   font-size: 16px;
   font-weight: 500;
   line-height: 18.75px;
   color: var(--color-dark-grey);
   font-family: 'Roboto', sans-serif;
 }
-
-/* ── Week row ── */
-.week-row {
-  display: flex;
-  flex-direction: row;
-  gap: 6px;
-}
-
-.week-day-label {
+.datepicker-weekdays { display: flex; gap: 6px; }
+.datepicker-weekday {
   width: 35px;
   text-align: center;
   font-size: 16px;
@@ -1848,17 +1516,13 @@ onUnmounted(() => {
   color: var(--color-dark-grey);
   font-family: 'Roboto', sans-serif;
 }
-
-/* ── Days grid ── */
-.days-grid {
+.datepicker-days {
   display: grid;
   grid-template-columns: repeat(7, 35px);
   gap: 6px;
   row-gap: 2px;
 }
-
-/* ── Day cells ── */
-.day-cell {
+.datepicker-day {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1874,60 +1538,37 @@ onUnmounted(() => {
   border-radius: 99px;
   transition: background-color 0.15s ease;
 }
-
-.day-cell:hover:not(.other-month):not(.range-start):not(.range-end):not(.range-single):not(.today) {
+.datepicker-day:hover:not(.other-month):not(.range-start):not(.range-end):not(.range-single):not(.today) {
   background-color: var(--color-active);
 }
-
-.day-cell.other-month {
-  opacity: 0.5;
-  cursor: default;
-}
-
-.day-cell.today {
-  
-}
-
-.day-cell.range-start,
-.day-cell.range-end,
-.day-cell.range-single {
+.datepicker-day.other-month { opacity: 0.5; cursor: default; }
+.datepicker-day.range-start,
+.datepicker-day.range-end,
+.datepicker-day.range-single {
   background-color: var(--color-blue);
   color: var(--color-white);
   font-weight: 600;
 }
-
-.day-cell.in-range {
+.datepicker-day.in-range {
   background-color: var(--color-active);
   color: var(--color-blue);
 }
-
-/* ── Toggle row ── */
-.toggle-row {
+.datepicker-toggle-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   height: 35px;
 }
-
-.toggle-left {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.toggle-label {
+.datepicker-toggle-left { display: flex; align-items: center; gap: 10px; }
+.datepicker-toggle-label {
   font-size: 14px;
   font-weight: 500;
   line-height: 16.41px;
   color: var(--color-black);
   font-family: 'Roboto', sans-serif;
 }
-
-.toggle-label.disabled {
-  color: var(--color-medium-grey);
-}
-
-.toggle-switch {
+.datepicker-toggle-label.disabled { color: var(--color-medium-grey); }
+.datepicker-switch {
   position: relative;
   width: 30px;
   height: 16px;
@@ -1938,17 +1579,9 @@ onUnmounted(() => {
   padding: 2px;
   transition: background-color 0.2s ease;
 }
-
-.toggle-switch.on {
-  background: var(--color-blue);
-}
-
-.toggle-switch.disabled {
-  background: var(--color-light-grey);
-  cursor: not-allowed;
-}
-
-.toggle-knob {
+.datepicker-switch.on { background: var(--color-blue); }
+.datepicker-switch.disabled { background: var(--color-light-grey); cursor: not-allowed; }
+.datepicker-switch-knob {
   display: block;
   width: 12px;
   height: 12px;
@@ -1956,29 +1589,15 @@ onUnmounted(() => {
   background: var(--color-white);
   transition: transform 0.2s ease;
 }
-
-.toggle-switch.on .toggle-knob {
-  transform: translateX(14px);
-}
-
-/* ── Time range ── */
-.time-range {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.time-separator {
+.datepicker-switch.on .datepicker-switch-knob { transform: translateX(14px); }
+.datepicker-time-range { display: flex; align-items: center; gap: 10px; }
+.datepicker-time-separator {
   font-size: 16px;
   color: var(--color-black);
   font-family: 'Roboto', sans-serif;
 }
-
-.time-dropdown {
-  position: relative;
-}
-
-.time-pill {
+.datepicker-time-dropdown { position: relative; }
+.datepicker-time-pill {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -1990,134 +1609,30 @@ onUnmounted(() => {
   border: 1px solid #EFF6FF;
   cursor: pointer;
   font-size: 16px;
-  font-weight: 400;
   color: var(--color-black);
   font-family: 'Roboto', sans-serif;
 }
-
-.time-chevron {
-  width: 15px;
-  height: 15px;
-  color: var(--color-black);
-  flex-shrink: 0;
-}
-
-.time-options {
+.datepicker-time-menu {
   position: absolute;
   bottom: calc(100% + 5px);
   left: 0;
+  right: auto;
+  top: auto;
   width: 95px;
   max-height: 200px;
   overflow-y: auto;
-  background: var(--color-white);
-  border-radius: 8px;
-  border: 1px solid var(--color-light-grey);
-  padding: 5px;
   z-index: 300;
 }
-
-.time-option {
-  display: block;
-  width: 100%;
-  padding: 6px 10px;
-  border: none;
-  background: transparent;
-  text-align: left;
-  cursor: pointer;
-  font-size: 14px;
-  color: var(--color-black);
-  font-family: 'Roboto', sans-serif;
-  border-radius: 4px;
-}
-
-.time-option:hover {
-  background-color: var(--color-background);
-}
-
-.time-option.active {
-  background-color: #EFF6FF;
-  color: var(--color-blue);
-  font-weight: 500;
-}
-
-.time-option.disabled {
-  cursor: default;
-  pointer-events: none;
-  opacity: 0.5;
-}
-
-/* ── Footer ── */
-.footer-row {
+.datepicker-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
-
-.footer-right {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.btn-outline {
-  padding: 10px 15px;
-  background: transparent;
-  color: var(--color-blue);
-  border: 1px solid var(--color-blue);
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 500;
-  line-height: 16.41px;
-  font-family: 'Roboto', sans-serif;
-  cursor: pointer;
-  transition: background-color 0.15s ease;
-}
-
-.btn-outline:hover:not(.disabled) {
-  background-color: #EFF6FF;
-}
-
-.btn-outline.disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.btn-primary {
-  padding: 10px 15px;
-  background: var(--color-blue);
-  color: var(--color-white);
-  border: none;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 500;
-  line-height: 16.41px;
-  font-family: 'Roboto', sans-serif;
-  cursor: pointer;
-  transition: opacity 0.15s ease;
-}
-
-.btn-primary:hover:not(.disabled) {
-  opacity: 0.9;
-}
-
-.btn-primary.disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
+.datepicker-footer-right { display: flex; align-items: center; gap: 10px; }
 
 /* ── Transition ── */
-.dropdown-enter-active {
-  transition: all 0.2s ease-out;
-}
-
-.dropdown-leave-active {
-  transition: all 0.15s ease-in;
-}
-
+.dropdown-enter-active { transition: all 0.2s ease-out; }
+.dropdown-leave-active { transition: all 0.15s ease-in; }
 .dropdown-enter-from,
-.dropdown-leave-to {
-  opacity: 0;
-  transform: translateY(-4px);
-}
-
+.dropdown-leave-to { opacity: 0; transform: translateY(-4px); }
 </style>
