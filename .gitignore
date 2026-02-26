@@ -1,0 +1,8 @@
+node_modules
+dist
+.DS_Store
+src/.DS_Store
+assets/.DS_Store
+assets/**/.DS_Store
+.claude/settings.json
+.mcp.json
