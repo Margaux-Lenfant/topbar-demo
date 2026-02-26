@@ -213,12 +213,12 @@ const toggleQueryDropdown = () => {
 const showLanguageDropdown = ref(false)
 const selectedLanguage = ref('FR')
 const languageOptions = [
-  { code: 'EN', label: 'Anglais', flag: '🇬🇧' },
-  { code: 'FR', label: 'Français', flag: '🇫🇷' },
-  { code: 'DE', label: 'Allemand', flag: '🇩🇪' },
-  { code: 'IT', label: 'Italien', flag: '🇮🇹' },
-  { code: 'JP', label: 'Japonnais', flag: '🇯🇵' },
-  { code: 'ES', label: 'Espagnol', flag: '🇪🇸' }
+  { code: 'EN', label: 'Anglais', flag: new URL('../../assets/flags/Anglais.svg', import.meta.url).href },
+  { code: 'FR', label: 'Français', flag: new URL('../../assets/flags/Français.svg', import.meta.url).href },
+  { code: 'DE', label: 'Allemand', flag: new URL('../../assets/flags/Allemand.svg', import.meta.url).href },
+  { code: 'IT', label: 'Italien', flag: new URL('../../assets/flags/Italien.svg', import.meta.url).href },
+  { code: 'JP', label: 'Japonnais', flag: new URL('../../assets/flags/Japonais.svg', import.meta.url).href },
+  { code: 'ES', label: 'Espagnol', flag: new URL('../../assets/flags/Espagnol.svg', import.meta.url).href }
 ]
 
 const toggleLanguageDropdown = () => {
@@ -884,7 +884,7 @@ onUnmounted(() => {
       <!-- Language Dropdown -->
       <div class="queries-language" :class="{ active: showLanguageDropdown }">
         <button class="queries-language-trigger" :class="{ open: showLanguageDropdown, selected: !!selectedLanguage }" @click="toggleLanguageDropdown">
-          <span v-if="selectedLanguageOption" class="flag-circle">{{ selectedLanguageOption.flag }}</span>
+          <img v-if="selectedLanguageOption" class="flag-circle flag-sm" :src="selectedLanguageOption.flag" :alt="selectedLanguageOption.label" />
           <svg v-else width="14" height="13" viewBox="0 0 14 13" fill="none"><path d="M11.1538 5.2H9.84615L7 13H8.30769L9 11.0686H12L12.6923 13H14L11.1538 5.2ZM9.46154 9.88L10.5385 6.90857L11.6154 9.88H9.46154ZM5.76923 7.05714C7 5.72 8 4.38286 8.61538 2.82286H10V1.63429H5.53846V0H4.46154V1.63429H0V2.74857H7.38462C6.84615 3.93714 6 5.05143 5 6.16571C4.30769 5.34857 3.69231 4.45714 3.23077 3.71429H2C2.46154 4.75429 3.30769 5.86857 4.23077 6.98286L2.38462 8.76571C2.15385 9.06286 1.84615 9.36 1.53846 9.65714L2.30769 10.4L3.23077 9.50857C3.84615 8.91429 4.46154 8.39429 5 7.8C5.61538 8.46857 6.30769 9.06286 6.92308 9.65714L7.38462 8.54286C6.84615 8.09714 6.30769 7.57714 5.76923 7.05714Z" fill="currentColor"/></svg>
         </button>
         <div v-if="showLanguageDropdown" class="queries-language-menu">
@@ -897,7 +897,7 @@ onUnmounted(() => {
               :class="{ active: lang.code === selectedLanguage }"
               @click="selectLanguage(lang)"
             >
-              <span class="flag-circle">{{ lang.flag }}</span>
+              <img class="flag-circle" :src="lang.flag" :alt="lang.label" />
               <span class="language-option-label">{{ lang.label }}</span>
               <svg v-if="lang.code === selectedLanguage" class="clear-icon" @click.stop="clearLanguage" width="13" height="13" viewBox="0 0 25 25" fill="none"><path d="M4.31219 5.81336C3.89594 5.39711 3.89594 4.72402 4.31219 4.31219C4.72844 3.90036 5.40154 3.89594 5.81336 4.31219L12.5 10.9988L19.1866 4.31219C19.6029 3.89594 20.276 3.89594 20.6878 4.31219C21.0996 4.72844 21.1041 5.40154 20.6878 5.81336L14.0012 12.5L20.6878 19.1866C21.1041 19.6029 21.1041 20.276 20.6878 20.6878C20.2716 21.0996 19.5985 21.1041 19.1866 20.6878L12.5 14.0012L5.81336 20.6878C5.39711 21.1041 4.72402 21.1041 4.31219 20.6878C3.90036 20.2716 3.89594 19.5985 4.31219 19.1866L10.9988 12.5L4.31219 5.81336Z" fill="currentColor"/></svg>
             </button>
@@ -1679,11 +1679,12 @@ onUnmounted(() => {
   height: 20px;
   border-radius: 50%;
   flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
+  object-fit: cover;
   overflow: hidden;
+}
+.flag-circle.flag-sm {
+  width: 15px;
+  height: 15px;
 }
 
 /* ── Date Picker ── */
