@@ -31,7 +31,7 @@ const toggleSidebar = () => {
 
     <!-- Main content -->
     <main class="main-content">
-      <TopBar :compact-date="sidebarExpanded" />
+      <TopBar :sidebarExpanded="sidebarExpanded" />
       <div class="content-area">
         <!-- Contenu principal ici -->
       </div>
@@ -47,10 +47,16 @@ const toggleSidebar = () => {
 }
 
 :root {
-  --color-black: #000000;
-  --color-white: #FFFFFF;
-  --color-blue: #2A62EE;
+  --color-blue: #173EB7;
   --color-background: #EFF5FC;
+  --color-hover: #EFF6FF; 
+  --color-active: #EFF6FF;
+  --color-white: #FFFFFF;
+  --color-light-grey: #EAEAEA; 
+  --color-medium-grey: #8D8D8D; 
+  --color-dark-grey: #595959;
+  --color-black: #000000;
+
 }
 
 body {
@@ -109,7 +115,7 @@ body {
 .toggle-btn {
   width: 28px;
   height: 28px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--color-light-grey);
   border-radius: 6px;
   background: var(--color-white);
   cursor: pointer;

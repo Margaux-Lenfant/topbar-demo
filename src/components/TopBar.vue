@@ -1,16 +1,57 @@
 <script setup>
-import { ref, computed, watch, nextTick } from 'vue'
+import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue'
 
-defineProps({
-  compactDate: {
+const props = defineProps({
+  sidebarExpanded: {
     type: Boolean,
     default: false
   }
 })
 
+// Date picker open state (declared early for closeAllDropdowns)
+const dpIsOpen = ref(false)
+
+// Close all dropdowns
+const closeAllDropdowns = (except) => {
+  const all = { corpus: showCorpusDropdown, acteurs: showActeursDropdown, query: showQueryDropdown, language: showLanguageDropdown }
+  Object.entries(all).forEach(([key, r]) => {
+    if (key !== except) r.value = false
+  })
+  if (except !== 'datepicker') dpIsOpen.value = false
+}
+
+// Toggle dropdowns (close others before opening)
+const toggleDropdown = (name) => {
+  const refs = { corpus: showCorpusDropdown, acteurs: showActeursDropdown }
+  const isOpen = refs[name].value
+  closeAllDropdowns(name)
+  refs[name].value = !isOpen
+
+  if (name === 'corpus' && !isOpen) {
+    nextTick(() => {
+      const el = document.querySelector('.dropdown-option.active')
+      if (el) el.scrollIntoView({ block: 'nearest' })
+    })
+  }
+
+  if (name === 'acteurs' && !isOpen) {
+    if (selectedActeur.value) {
+      // Expand the category containing the selected item
+      acteursCategories.value.forEach(cat => {
+        cat.expanded = cat.items.some(item => getItemName(item) === selectedActeur.value)
+      })
+      // Scroll to selected item
+      nextTick(() => {
+        const el = document.querySelector('.dropdown-option.active, .dropdown-option-modularity.active')
+        if (el) el.scrollIntoView({ block: 'nearest' })
+      })
+    }
+  }
+}
+
 // Corpus
 const selectedCorpus = ref('France')
-const corpusOptions = ['Argentina', 'Bulgaria', 'Colombia', 'Czechia', 'Denmark', 'EU', 'France']
+const corpusOptions = ['Argentina', 'Bulgaria', 'Colombia', 'Czechia', 'Denmark', 'EU', 'France', 'Germany', 'Greece', 'Italy', 'Japan']
 const showCorpusDropdown = ref(false)
 const corpusSearch = ref('')
 
@@ -27,942 +68,980 @@ const selectCorpus = (corpus) => {
   corpusSearch.value = ''
 }
 
-// Sources
-const sourceSearch = ref('')
-const showSourcesDropdown = ref(false)
-const selectedItem = ref(null) // Track selected item (single selection for pre-registered)
-const sourceSearchInput = ref(null)
-
-// Entity search - multiple selection
-const selectedSearchEntities = ref([]) // Track multiple selected entities from search
-const validatedSearchEntities = ref([]) // Track validated entities
-
-// Mock entity database for search
-const allEntities = [
-  { id: 'entity-1', label: 'Ile de France - Stakeholders' },
-  { id: 'entity-2', label: 'Leeanna Mac Vacaron' },
-  { id: 'entity-3', label: 'Data Annuel France - Stakeholder' },
-  { id: 'entity-4', label: 'Italy Stakeholders' },
-  { id: 'entity-5', label: 'France Corporate' },
-  { id: 'entity-6', label: 'France Government' },
-  { id: 'entity-7', label: 'EU Parliament Members' },
-  { id: 'entity-8', label: 'Bulgaria Officials' },
-  { id: 'entity-9', label: 'Denmark Stakeholders' },
-  { id: 'entity-10', label: 'Colombia Partners' }
-]
-
-// Filtered entities based on search input
-const filteredSearchEntities = computed(() => {
-  if (!sourceSearch.value || sourceSearch.value.length < 1) return []
-  const searchTerm = sourceSearch.value.toLowerCase()
-  return allEntities.filter(entity =>
-    entity.label.toLowerCase().includes(searchTerm)
-  )
-})
-
-// Check if entity is selected in search results
-const isEntitySelected = (entityId) => {
-  return selectedSearchEntities.value.includes(entityId)
+// Highlight matching text
+const highlightMatch = (text, search) => {
+  if (!search) return text
+  const regex = new RegExp(`(${search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi')
+  return text.replace(regex, '<span class="highlight-match">$1</span>')
 }
 
-// Toggle entity selection in search results
-const toggleEntitySelection = (entityId) => {
-  const index = selectedSearchEntities.value.indexOf(entityId)
-  if (index === -1) {
-    selectedSearchEntities.value.push(entityId)
+// Acteurs
+const showActeursDropdown = ref(false)
+const acteursSearch = ref('')
+
+const acteursEntities = ['Entité 1', 'Entité 2', 'Entité 3', 'Entité 4', 'Entité 5', 'Entité 6', 'Entité 7', 'Entité 8', 'Entité 9', 'Entité 10']
+
+const filteredEntities = () => {
+  if (!acteursSearch.value) return acteursEntities.filter(e => checkedEntities.value.includes(e))
+  return acteursEntities.filter(item =>
+    item.toLowerCase().includes(acteursSearch.value.toLowerCase())
+  )
+}
+
+const acteursCategories = ref([
+  { id: 'entities', label: "Listes d'entités", expanded: false, items: [
+    'Liste 1', 'Liste 2', 'Liste 3', 'Liste 4', 'Liste 5', 'Liste 6', 'Liste 7', 'Liste 8', 'Liste 9', 'Liste 10'
+  ]},
+  { id: 'communities', label: 'Communautés', expanded: false, items: [
+    { name: 'Communauté 1', color: '#01A5F8' },
+    { name: 'Communauté 2', color: '#BA77BA' },
+    { name: 'Communauté 3', color: '#FF7C80' },
+    { name: 'Communauté 4', color: '#3AAED1' },
+    { name: 'Communauté 5', color: '#000000' },
+    { name: 'Communauté 6', color: '#1B4B7A' },
+    { name: 'Communauté 7', color: '#EBCB81' },
+    { name: 'Communauté 8', color: '#5890C4' },
+    { name: 'Communauté 9', color: '#A8DFEA' },
+    { name: 'Communauté 10', color: '#70E1C4' }
+  ]},
+  { id: 'subcommunities', label: 'Sous-communautés', expanded: false, items: [
+    'Sous-communauté 1', 'Sous-communauté 2', 'Sous-communauté 3', 'Sous-communauté 4', 'Sous-communauté 5', 'Sous-communauté 6', 'Sous-communauté 7', 'Sous-communauté 8', 'Sous-communauté 9', 'Sous-communauté 10'
+  ]},
+  { id: 'stakeholders', label: 'Stakeholders', expanded: false, items: [
+    'Stakeholder 1', 'Stakeholder 2', 'Stakeholder 3', 'Stakeholder 4', 'Stakeholder 5', 'Stakeholder 6', 'Stakeholder 7', 'Stakeholder 8', 'Stakeholder 9', 'Stakeholder 10'
+  ]}
+])
+
+const selectedActeur = ref(null)
+const checkedEntities = ref([])
+
+const getItemName = (item) => typeof item === 'string' ? item : item.name
+
+const selectActeur = (item) => {
+  checkedEntities.value = []
+  selectedActeur.value = getItemName(item)
+  showActeursDropdown.value = false
+}
+
+const toggleEntity = (entity) => {
+  selectedActeur.value = null
+  const idx = checkedEntities.value.indexOf(entity)
+  if (idx === -1) {
+    checkedEntities.value.push(entity)
   } else {
-    selectedSearchEntities.value.splice(index, 1)
+    checkedEntities.value.splice(idx, 1)
   }
 }
 
-// Validate selected entities
-const validateSearchSelection = () => {
-  validatedSearchEntities.value = [...selectedSearchEntities.value]
-  showSourcesDropdown.value = false
-  sourceSearch.value = ''
-  // Clear single selection when validating multiple entities
-  selectedItem.value = null
+const removeEntity = (entity) => {
+  checkedEntities.value = checkedEntities.value.filter(e => e !== entity)
 }
 
-// Clear search selection
-const clearSearchSelection = () => {
-  selectedSearchEntities.value = []
+const resetEntities = () => {
+  checkedEntities.value = []
 }
 
-// Save the list (when more than 1 entity selected)
-const saveEntityList = () => {
-  // This would typically save to backend or local storage
-  console.log('Saving entity list:', selectedSearchEntities.value)
-  alert('Liste sauvegardée avec ' + selectedSearchEntities.value.length + ' entités')
+const clearActeur = () => {
+  selectedActeur.value = null
+  checkedEntities.value = []
 }
 
-// Show action buttons when entities are selected in search
-const showSearchActionButtons = computed(() => {
-  return selectedSearchEntities.value.length > 0
-})
+const hasSelection = () => selectedActeur.value || checkedEntities.value.length > 0
 
-// Displayed entities: show when searching OR when there are selected entities
-const displayedEntities = computed(() => {
-  if (sourceSearch.value.length > 0) {
-    return filteredSearchEntities.value
-  }
-  // When not searching, show selected entities so user can uncheck them
-  if (selectedSearchEntities.value.length > 0) {
-    return allEntities.filter(entity =>
-      selectedSearchEntities.value.includes(entity.id)
-    )
-  }
-  return []
-})
-
-// Check if entities section should be visible
-const showEntitiesSection = computed(() => {
-  return displayedEntities.value.length > 0
-})
-
-// Get selected entities as objects (for displaying tags)
-const selectedEntitiesObjects = computed(() => {
-  return allEntities.filter(entity =>
-    selectedSearchEntities.value.includes(entity.id)
-  )
-})
-
-// Get filtered entities excluding already selected ones (to avoid duplicates in search results)
-const nonSelectedFilteredEntities = computed(() => {
-  return filteredSearchEntities.value.filter(entity =>
-    !selectedSearchEntities.value.includes(entity.id)
-  )
-})
-
-// Remove entity from selection (for tag X button)
-const removeEntityFromSelection = (entityId) => {
-  const index = selectedSearchEntities.value.indexOf(entityId)
-  if (index !== -1) {
-    selectedSearchEntities.value.splice(index, 1)
-  }
-}
-
-// Filter category items based on search
-const getFilteredCategoryItems = (category) => {
-  if (!sourceSearch.value) return category.items
-  const searchTerm = sourceSearch.value.toLowerCase()
-  return category.items.filter(item =>
-    item.label.toLowerCase().includes(searchTerm)
+const filteredActeursItems = (items) => {
+  if (!acteursSearch.value) return items
+  return items.filter(item =>
+    getItemName(item).toLowerCase().includes(acteursSearch.value.toLowerCase())
   )
 }
 
-// Check if category should show its items
-const shouldShowCategoryItems = (category) => {
-  const searchTerm = sourceSearch.value?.trim() || ''
-  if (searchTerm.length > 0) {
-    // When searching: auto-expand ONLY if has matching items
-    const matchingItems = category.items.filter(item =>
-      item.label.toLowerCase().includes(searchTerm.toLowerCase())
-    )
-    return matchingItems.length > 0
-  }
-  // When not searching: use manual expanded state
+const isCategoryVisible = (category) => {
+  if (acteursSearch.value) return filteredActeursItems(category.items).length > 0
   return category.expanded
 }
 
-// Highlight matching text with bold
-const highlightMatch = (text) => {
-  const searchTerm = sourceSearch.value?.trim() || ''
-  if (!searchTerm) return text
-
-  const regex = new RegExp(`(${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi')
-  return text.replace(regex, '<span class="highlight-match">$1</span>')
-}
-
-watch(showSourcesDropdown, (isOpen) => {
-  if (isOpen) {
-    nextTick(() => {
-      sourceSearchInput.value?.focus()
-    })
-    // Keep current selection when reopening
-  }
-})
-
-const sourceCategories = ref([
-  {
-    id: 'entities',
-    label: "Listes d'entités",
-    expanded: false,
-    items: [
-      { id: 'sub-entities-paps', label: 'Sub-entities PAPs' },
-      { id: 'czechia-paps', label: 'Czechia PAPs' },
-      { id: 'italy', label: 'Italy' }
-    ]
-  },
-  {
-    id: 'communities',
-    label: 'Communautés',
-    expanded: false,
-    items: [
-      { id: 'community-1', label: 'Community 1' },
-      { id: 'community-2', label: 'Community 2' }
-    ]
-  },
-  {
-    id: 'subcommunities',
-    label: 'Sous-communautés',
-    expanded: false,
-    items: [
-      { id: 'subcommunity-1', label: 'Subcommunity 1' },
-      { id: 'subcommunity-2', label: 'Subcommunity 2' }
-    ]
-  },
-  {
-    id: 'stakeholders',
-    label: 'Stakeholders',
-    expanded: false,
-    items: [
-      { id: 'stakeholder-1', label: 'Stakeholder 1' },
-      { id: 'stakeholder-2', label: 'Stakeholder 2' }
-    ]
-  }
-])
-
-const toggleSourceCategory = (category) => {
+const toggleActeursCategory = (category) => {
   category.expanded = !category.expanded
 }
 
-const selectItem = (itemId) => {
-  selectedItem.value = itemId
-  showSourcesDropdown.value = false
-  // Clear multiple entity selection when selecting a pre-registered item
-  selectedSearchEntities.value = []
-  validatedSearchEntities.value = []
-  sourceSearch.value = ''
+// Sujets bar
+const sujetsSearch = ref('')
+const sujetsSearchFocused = ref(false)
+
+const submitSujetsSearch = (e) => {
+  e.target.blur()
 }
 
-const clearSelection = () => {
-  selectedItem.value = null
-  validatedSearchEntities.value = []
-  selectedSearchEntities.value = []
-}
 
-const selectedItemLabel = computed(() => {
-  if (!selectedItem.value) return null
-  for (const category of sourceCategories.value) {
-    const item = category.items.find(i => i.id === selectedItem.value)
-    if (item) return item.label
-  }
-  return null
-})
+// Query dropdown (inside Sujets bar)
+const showQueryDropdown = ref(false)
+const selectedQuery = ref(null)
+const querySearch = ref('')
+const queryOptions = ['Query 1', 'Query 2', 'Query 3', 'Query 4', 'Query 5', 'Query 6', 'Query 7', 'Query 8', 'Query 9', 'Query 10']
 
-// Sujets
-const subjectSearch = ref('')
-const showSujetsDropdown = ref(false)
-const subjectSearchInput = ref(null)
-const selectedSubject = ref(null) // Single selection only
-const selectedKeywords = ref([]) // Tableau pour stocker les mots-clés personnalisés
-const recentSearches = ref([]) // Historique des recherches récentes
-
-// Computed pour afficher les tags de mots-clés
-const keywordTags = computed(() => {
-  return selectedKeywords.value.map((keyword, index) => ({
-    id: `keyword-${index}`,
-    label: keyword
-  }))
-})
-
-// Liste simple de queries (pas de catégories)
-const subjectItems = ref([
-  { id: 'query-1', label: 'France :: 20225 (VW Transverses et Pays)' },
-  { id: 'query-2', label: 'France :: Mobilité électrique' },
-  { id: 'query-3', label: 'EU :: Réglementation environnementale' },
-  { id: 'query-4', label: 'Bulgaria :: Automotive Industry' },
-  { id: 'query-5', label: 'Denmark :: Green Transition' }
-])
-
-const selectSubject = (itemId) => {
-  selectedSubject.value = itemId
-  showSujetsDropdown.value = false
-  subjectSearch.value = ''
-}
-
-const clearSubjectSelection = () => {
-  selectedSubject.value = null
-}
-
-const selectedSubjectLabel = computed(() => {
-  if (!selectedSubject.value) return null
-  const item = subjectItems.value.find(i => i.id === selectedSubject.value)
-  return item ? item.label : null
-})
-
-// Filter subject items based on search
-const filteredSubjectItems = computed(() => {
-  if (!subjectSearch.value) return subjectItems.value
-  const searchTerm = subjectSearch.value.toLowerCase()
-  return subjectItems.value.filter(item =>
-    item.label.toLowerCase().includes(searchTerm)
+const filteredQueryOptions = () => {
+  if (!querySearch.value) return queryOptions
+  return queryOptions.filter(option =>
+    option.toLowerCase().includes(querySearch.value.toLowerCase())
   )
-})
-
-// Highlight matching text for subjects
-const highlightSubjectMatch = (text) => {
-  const searchTerm = subjectSearch.value?.trim() || ''
-  if (!searchTerm) return text
-
-  const regex = new RegExp(`(${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi')
-  return text.replace(regex, '<span class="highlight-match">$1</span>')
 }
 
-// Ajouter un mot-clé
-const addKeyword = (keyword = null) => {
-  const keywordToAdd = keyword || subjectSearch.value.trim()
-  if (keywordToAdd && !selectedKeywords.value.includes(keywordToAdd)) {
-    selectedKeywords.value.push(keywordToAdd)
-    // Ajouter aux recherches récentes (max 10, éviter les doublons)
-    if (!recentSearches.value.includes(keywordToAdd)) {
-      recentSearches.value.unshift(keywordToAdd)
-      if (recentSearches.value.length > 10) {
-        recentSearches.value.pop()
-      }
-    }
-    subjectSearch.value = ''
-    showSujetsDropdown.value = false
-  }
+const selectQuery = (query) => {
+  selectedQuery.value = query
+  showQueryDropdown.value = false
+  querySearch.value = ''
 }
 
-// Supprimer un mot-clé
-const removeKeyword = (index) => {
-  selectedKeywords.value.splice(index, 1)
+const clearQuery = () => {
+  selectedQuery.value = null
 }
 
-// Gérer l'événement keydown sur l'input
-const handleSubjectKeydown = (event) => {
-  if (event.key === 'Enter' && subjectSearch.value.trim()) {
-    event.preventDefault()
-    addKeyword()
-  }
-}
+const toggleQueryDropdown = () => {
+  const isOpen = showQueryDropdown.value
+  closeAllDropdowns('query')
+  showQueryDropdown.value = !isOpen
 
-watch(showSujetsDropdown, (isOpen) => {
-  if (isOpen) {
+  if (showQueryDropdown.value && selectedQuery.value) {
     nextTick(() => {
-      subjectSearchInput.value?.focus()
+      const el = document.querySelector('.queries-dropdown-menu .dropdown-option.active')
+      if (el) el.scrollIntoView({ block: 'nearest' })
     })
   }
-})
+}
 
-// Date Picker
-const showDatePicker = ref(false)
-const startDate = ref('2026-01-01')
-const endDate = ref('2026-01-16')
-const tempStartDate = ref(null)
-const tempEndDate = ref(null)
-const selectedPeriod = ref('personnalise')
-
-const periodOptions = [
-  { id: '7jours', label: '7 jours', days: 7 },
-  { id: '14jours', label: '14 jours', days: 14 },
-  { id: '1mois', label: '1 mois', months: 1 },
-  { id: '3mois', label: '3 mois', months: 3 },
-  { id: '6mois', label: '6 mois', months: 6 },
-  { id: '1an', label: '1 an', years: 1 },
-  { id: 'personnalise', label: 'Personnalisé', custom: true }
+// Language
+const showLanguageDropdown = ref(false)
+const selectedLanguage = ref('FR')
+const languageOptions = [
+  { code: 'EN', label: 'Anglais', flag: '🇬🇧' },
+  { code: 'FR', label: 'Français', flag: '🇫🇷' },
+  { code: 'DE', label: 'Allemand', flag: '🇩🇪' },
+  { code: 'IT', label: 'Italien', flag: '🇮🇹' },
+  { code: 'JP', label: 'Japonnais', flag: '🇯🇵' },
+  { code: 'ES', label: 'Espagnol', flag: '🇪🇸' }
 ]
 
-// Calendar state
-const leftMonth = ref(new Date(2026, 0, 1)) // January 2026
-const rightMonth = ref(new Date(2026, 1, 1)) // February 2026
-const hoveredDate = ref(null)
-
-const formatDateRange = () => {
-  const format = (dateStr) => new Date(dateStr).toLocaleDateString('fr-FR')
-  return `${format(startDate.value)} - ${format(endDate.value)}`
+const toggleLanguageDropdown = () => {
+  const isOpen = showLanguageDropdown.value
+  closeAllDropdowns('language')
+  showLanguageDropdown.value = !isOpen
 }
 
-const formatDateInput = (dateStr) => {
-  if (!dateStr) return ''
-  const date = new Date(dateStr)
-  const day = String(date.getDate()).padStart(2, '0')
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const year = date.getFullYear()
-  return `${day}/${month}/${year}`
+const selectedLanguageOption = computed(() => languageOptions.find(l => l.code === selectedLanguage.value))
+
+const selectLanguage = (lang) => {
+  selectedLanguage.value = lang.code
+  showLanguageDropdown.value = false
 }
 
-// Format date to YYYY-MM-DD without timezone conversion
-const toDateString = (date) => {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
+const clearLanguage = () => {
+  selectedLanguage.value = null
 }
 
-const openDatePicker = () => {
-  tempStartDate.value = startDate.value
-  tempEndDate.value = endDate.value
-  showDatePicker.value = true
+// Date Picker — full logic
+const padTwo = (n) => String(n).padStart(2, '0')
+const toDateStr = (d) => `${padTwo(d.getDate())}/${padTwo(d.getMonth() + 1)}/${d.getFullYear()}`
+const now = new Date()
+const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate())
+const dateStart = ref(toDateStr(threeMonthsAgo))
+const dateEnd = ref(toDateStr(now))
+
+const dpHoverDate = ref(null)
+const dpSelecting = ref(false)
+const dpActiveShortcut = ref(null)
+
+const dpInternalStart = ref(null)
+const dpInternalEnd = ref(null)
+const dpTempStart = ref(null)
+const dpTempEnd = ref(null)
+
+const dpLeftMonth = ref(new Date().getMonth())
+const dpLeftYear = ref(new Date().getFullYear())
+const dpRightMonth = ref((new Date().getMonth() + 1) % 12)
+const dpRightYear = ref(new Date().getMonth() === 11 ? new Date().getFullYear() + 1 : new Date().getFullYear())
+
+const dpMonthKey = (year, month) => year * 12 + month
+
+const dpDayNames = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
+const dpMonthNames = [
+  'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+  'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
+]
+
+const dpParseDate = (str) => {
+  if (!str) return null
+  const parts = str.split('/')
+  if (parts.length !== 3) return null
+  const [d, m, y] = parts.map(Number)
+  return new Date(y, m - 1, d)
 }
 
-const closeDatePicker = () => {
-  showDatePicker.value = false
+const dpFormatDate = (date) => {
+  if (!date) return ''
+  const d = String(date.getDate()).padStart(2, '0')
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const y = date.getFullYear()
+  return `${d}/${m}/${y}`
 }
 
-const clearDates = () => {
-  tempStartDate.value = null
-  tempEndDate.value = null
-  selectedPeriod.value = 'personnalise'
+const dpStepMonth = (month, year, delta) => {
+  let m = month + delta
+  let y = year
+  if (m < 0) { m = 11; y-- }
+  else if (m > 11) { m = 0; y++ }
+  return { month: m, year: y }
 }
 
-const cancelDatePicker = () => {
-  showDatePicker.value = false
-}
-
-const validateDates = () => {
-  if (tempStartDate.value && tempEndDate.value) {
-    startDate.value = tempStartDate.value
-    endDate.value = tempEndDate.value
-  }
-  showDatePicker.value = false
-}
-
-const selectPeriod = (period) => {
-  selectedPeriod.value = period.id
-  if (!period.custom) {
-    const end = new Date()
-    const start = new Date()
-
-    if (period.days) {
-      start.setDate(end.getDate() - period.days + 1)
-    } else if (period.months) {
-      start.setMonth(end.getMonth() - period.months)
-      start.setDate(start.getDate() + 1)
-    } else if (period.years) {
-      start.setFullYear(end.getFullYear() - period.years)
-      start.setDate(start.getDate() + 1)
+const dpInitDates = () => {
+  dpInternalStart.value = dpParseDate(dateStart.value)
+  dpInternalEnd.value = dpParseDate(dateEnd.value)
+  dpTempStart.value = dpInternalStart.value
+  dpTempEnd.value = dpInternalEnd.value
+  if (dpInternalStart.value) {
+    dpLeftMonth.value = dpInternalStart.value.getMonth()
+    dpLeftYear.value = dpInternalStart.value.getFullYear()
+    if (dpInternalEnd.value && dpMonthKey(dpInternalEnd.value.getFullYear(), dpInternalEnd.value.getMonth()) > dpMonthKey(dpLeftYear.value, dpLeftMonth.value)) {
+      dpRightMonth.value = dpInternalEnd.value.getMonth()
+      dpRightYear.value = dpInternalEnd.value.getFullYear()
+    } else {
+      const r = dpStepMonth(dpLeftMonth.value, dpLeftYear.value, 1)
+      dpRightMonth.value = r.month
+      dpRightYear.value = r.year
     }
-
-    tempStartDate.value = toDateString(start)
-    tempEndDate.value = toDateString(end)
-
-    // Update calendar view to show the selected range
-    leftMonth.value = new Date(start.getFullYear(), start.getMonth(), 1)
-    rightMonth.value = new Date(leftMonth.value.getFullYear(), leftMonth.value.getMonth() + 1, 1)
   }
 }
+dpInitDates()
 
-// Calendar navigation
-const prevMonth = () => {
-  leftMonth.value = new Date(leftMonth.value.getFullYear(), leftMonth.value.getMonth() - 1, 1)
-  rightMonth.value = new Date(rightMonth.value.getFullYear(), rightMonth.value.getMonth() - 1, 1)
+const dpDisplayValue = computed(() => {
+  const isOpen = dpIsOpen.value
+  const start = isOpen ? dpTempStart.value : dpInternalStart.value
+  const end = isOpen ? dpTempEnd.value : dpInternalEnd.value
+  const hasTime = isOpen ? dpShowTime.value : dpConfirmedShowTime.value
+  const tStart = isOpen ? dpTimeStart.value : dpConfirmedTimeStart.value
+  const tEnd = isOpen ? dpTimeEnd.value : dpConfirmedTimeEnd.value
+  if (start && end) {
+    if (dpDateToKey(start) === dpDateToKey(end)) {
+      if (hasTime) return `${dpFormatDate(start)} ${tStart} - ${tEnd}`
+      return dpFormatDate(start)
+    }
+    return `${dpFormatDate(start)} - ${dpFormatDate(end)}`
+  }
+  if (start) {
+    if (hasTime) return `${dpFormatDate(start)} ${tStart} - ${tEnd}`
+    return dpFormatDate(start)
+  }
+  return ''
+})
+
+const dpHasChanged = computed(() => {
+  if (!dpIsOpen.value) return false
+  const tempStartKey = dpTempStart.value ? dpDateToKey(dpTempStart.value) : null
+  const tempEndKey = dpTempEnd.value ? dpDateToKey(dpTempEnd.value) : null
+  const intStartKey = dpInternalStart.value ? dpDateToKey(dpInternalStart.value) : null
+  const intEndKey = dpInternalEnd.value ? dpDateToKey(dpInternalEnd.value) : null
+  if (tempStartKey !== intStartKey || tempEndKey !== intEndKey) return true
+  if (dpShowTime.value !== dpConfirmedShowTime.value) return true
+  if (dpShowTime.value && (dpTimeStart.value !== dpConfirmedTimeStart.value || dpTimeEnd.value !== dpConfirmedTimeEnd.value)) return true
+  return false
+})
+
+const dpLeftPrev = () => {
+  const { month, year } = dpStepMonth(dpLeftMonth.value, dpLeftYear.value, -1)
+  dpLeftMonth.value = month
+  dpLeftYear.value = year
+}
+const dpLeftNext = () => {
+  const { month, year } = dpStepMonth(dpLeftMonth.value, dpLeftYear.value, 1)
+  dpLeftMonth.value = month
+  dpLeftYear.value = year
+  if (dpMonthKey(dpLeftYear.value, dpLeftMonth.value) >= dpMonthKey(dpRightYear.value, dpRightMonth.value)) {
+    const r = dpStepMonth(dpLeftMonth.value, dpLeftYear.value, 1)
+    dpRightMonth.value = r.month
+    dpRightYear.value = r.year
+  }
+}
+const dpRightPrev = () => {
+  const { month, year } = dpStepMonth(dpRightMonth.value, dpRightYear.value, -1)
+  dpRightMonth.value = month
+  dpRightYear.value = year
+  if (dpMonthKey(dpRightYear.value, dpRightMonth.value) <= dpMonthKey(dpLeftYear.value, dpLeftMonth.value)) {
+    const l = dpStepMonth(dpRightMonth.value, dpRightYear.value, -1)
+    dpLeftMonth.value = l.month
+    dpLeftYear.value = l.year
+  }
+}
+const dpRightNext = () => {
+  const { month, year } = dpStepMonth(dpRightMonth.value, dpRightYear.value, 1)
+  dpRightMonth.value = month
+  dpRightYear.value = year
 }
 
-const nextMonth = () => {
-  leftMonth.value = new Date(leftMonth.value.getFullYear(), leftMonth.value.getMonth() + 1, 1)
-  rightMonth.value = new Date(rightMonth.value.getFullYear(), rightMonth.value.getMonth() + 1, 1)
+const dpGetDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate()
+const dpGetFirstDayOfMonth = (year, month) => {
+  const day = new Date(year, month, 1).getDay()
+  return day === 0 ? 6 : day - 1
 }
 
-const getMonthName = (date) => {
-  return date.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
-}
-
-const getDaysInMonth = (date) => {
-  const year = date.getFullYear()
-  const month = date.getMonth()
-  const firstDay = new Date(year, month, 1)
-  const lastDay = new Date(year, month + 1, 0)
+const dpGenerateCalendarDays = (year, month) => {
   const days = []
-
-  // Add empty slots for days before the first day of the month
-  const startDay = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1 // Monday = 0
-  for (let i = 0; i < startDay; i++) {
-    days.push(null)
+  const daysInMonth = dpGetDaysInMonth(year, month)
+  const firstDay = dpGetFirstDayOfMonth(year, month)
+  const prevMonthVal = month === 0 ? 11 : month - 1
+  const prevYearVal = month === 0 ? year - 1 : year
+  const daysInPrevMonth = dpGetDaysInMonth(prevYearVal, prevMonthVal)
+  for (let i = firstDay - 1; i >= 0; i--) {
+    days.push({ day: daysInPrevMonth - i, month: prevMonthVal, year: prevYearVal, isCurrentMonth: false })
   }
-
-  // Add all days of the month
-  for (let i = 1; i <= lastDay.getDate(); i++) {
-    days.push(new Date(year, month, i))
+  for (let i = 1; i <= daysInMonth; i++) {
+    days.push({ day: i, month, year, isCurrentMonth: true })
   }
-
+  const nextMonthVal = month === 11 ? 0 : month + 1
+  const nextYearVal = month === 11 ? year + 1 : year
+  const totalRows = 42
+  const remaining = totalRows - days.length
+  for (let i = 1; i <= remaining; i++) {
+    days.push({ day: i, month: nextMonthVal, year: nextYearVal, isCurrentMonth: false })
+  }
   return days
 }
 
-const isDateInRange = (date) => {
-  if (!date || !tempStartDate.value) return false
-  const d = new Date(date)
-  const start = new Date(tempStartDate.value)
+const dpLeftCalendarDays = computed(() => dpGenerateCalendarDays(dpLeftYear.value, dpLeftMonth.value))
+const dpRightCalendarDays = computed(() => dpGenerateCalendarDays(dpRightYear.value, dpRightMonth.value))
 
-  // If we have an end date, use it
-  if (tempEndDate.value) {
-    const end = new Date(tempEndDate.value)
-    return d > start && d < end
-  }
+const dpToDateKey = (year, month, day) => year * 10000 + month * 100 + day
+const dpDateToKey = (date) => date ? dpToDateKey(date.getFullYear(), date.getMonth(), date.getDate()) : null
 
-  // If hovering while selecting, show preview range
-  if (hoveredDate.value && !tempEndDate.value) {
-    const hovered = new Date(hoveredDate.value)
-    if (hovered > start) {
-      return d > start && d < hovered
-    } else if (hovered < start) {
-      return d > hovered && d < start
-    }
-  }
+const dpIsToday = (dayObj) => {
+  const today = new Date()
+  return dayObj.day === today.getDate() && dayObj.month === today.getMonth() && dayObj.year === today.getFullYear()
+}
 
+const dpIsFuture = (dayObj) => {
+  const today = new Date()
+  const todayKey = dpToDateKey(today.getFullYear(), today.getMonth(), today.getDate())
+  return dpToDateKey(dayObj.year, dayObj.month, dayObj.day) > todayKey
+}
+
+const dpIsSameDay = (dayObj, date) => {
+  if (!date) return false
+  return dayObj.day === date.getDate() && dayObj.month === date.getMonth() && dayObj.year === date.getFullYear()
+}
+
+const dpIsInRange = (dayObj) => {
+  if (!dpTempStart.value) return false
+  const key = dpToDateKey(dayObj.year, dayObj.month, dayObj.day)
+  const startKey = dpDateToKey(dpTempStart.value)
+  const endDate = dpSelecting.value ? dpHoverDate.value : dpTempEnd.value
+  if (!endDate) return false
+  const endKey = dpDateToKey(endDate)
+  if (startKey < endKey) return key > startKey && key < endKey
+  if (startKey > endKey) return key < startKey && key > endKey
   return false
 }
 
-const isDateInRangePreview = (date) => {
-  if (!date || !tempStartDate.value || tempEndDate.value || !hoveredDate.value) return false
-  const d = new Date(date)
-  const start = new Date(tempStartDate.value)
-  const hovered = new Date(hoveredDate.value)
-
-  if (hovered > start) {
-    return d > start && d <= hovered
-  } else if (hovered < start) {
-    return d >= hovered && d < start
-  }
-  return false
+const dpIsHoverEnd = (dayObj) => {
+  if (!dpSelecting.value || !dpHoverDate.value) return false
+  return dpIsSameDay(dayObj, dpHoverDate.value)
 }
 
-const onDateHover = (date) => {
-  if (date && tempStartDate.value && !tempEndDate.value) {
-    hoveredDate.value = toDateString(date)
-  }
-}
-
-const onDateLeave = () => {
-  hoveredDate.value = null
-}
-
-const isStartDate = (date) => {
-  if (!date || !tempStartDate.value) return false
-  return new Date(date).toDateString() === new Date(tempStartDate.value).toDateString()
-}
-
-const isEndDate = (date) => {
-  if (!date || !tempEndDate.value) return false
-  return new Date(date).toDateString() === new Date(tempEndDate.value).toDateString()
-}
-
-const selectDate = (date) => {
-  if (!date) return
-  const dateStr = toDateString(date)
-
-  selectedPeriod.value = 'personnalise'
-  hoveredDate.value = null
-
-  if (!tempStartDate.value || (tempStartDate.value && tempEndDate.value)) {
-    // Start a new selection
-    tempStartDate.value = dateStr
-    tempEndDate.value = null
+const dpGetEffectiveRange = (dayObj) => {
+  const start = dpTempStart.value
+  const end = dpSelecting.value ? dpHoverDate.value : dpTempEnd.value
+  if (!start || !end) return { isStart: dpIsSameDay(dayObj, start), isEnd: false }
+  const startKey = dpDateToKey(start)
+  const endKey = dpDateToKey(end)
+  if (startKey <= endKey) {
+    return { isStart: dpIsSameDay(dayObj, start), isEnd: dpIsSameDay(dayObj, end) }
   } else {
-    // Complete the selection
-    if (new Date(dateStr) < new Date(tempStartDate.value)) {
-      tempEndDate.value = tempStartDate.value
-      tempStartDate.value = dateStr
+    return { isStart: dpIsSameDay(dayObj, end), isEnd: dpIsSameDay(dayObj, start) }
+  }
+}
+
+const dpSelectDay = (dayObj) => {
+  if (!dayObj.isCurrentMonth || dpIsFuture(dayObj)) return
+  const date = new Date(dayObj.year, dayObj.month, dayObj.day)
+  dpActiveShortcut.value = null
+  if (!dpSelecting.value) {
+    dpTempStart.value = date
+    dpTempEnd.value = null
+    dpSelecting.value = true
+  } else {
+    const startKey = dpDateToKey(dpTempStart.value)
+    const endKey = dpDateToKey(date)
+    if (startKey <= endKey) {
+      dpTempEnd.value = date
     } else {
-      tempEndDate.value = dateStr
+      dpTempEnd.value = dpTempStart.value
+      dpTempStart.value = date
+    }
+    dpSelecting.value = false
+    dpHoverDate.value = null
+    if (dpDateToKey(dpTempStart.value) !== dpDateToKey(dpTempEnd.value)) {
+      dpShowTime.value = false
     }
   }
 }
 
-// Check if we're in selection mode (start selected, no end yet)
-const isSelectingRange = computed(() => {
-  return tempStartDate.value && !tempEndDate.value
+const dpOnDayHover = (dayObj) => {
+  if (dpSelecting.value && dayObj.isCurrentMonth && !dpIsFuture(dayObj)) {
+    dpHoverDate.value = new Date(dayObj.year, dayObj.month, dayObj.day)
+  }
+}
+
+const dpDayClasses = (dayObj) => {
+  const classes = ['day-cell']
+  if (!dayObj.isCurrentMonth || dpIsFuture(dayObj)) {
+    classes.push('other-month')
+    return classes
+  }
+  if (dpIsToday(dayObj)) classes.push('today')
+  const { isStart, isEnd } = dpGetEffectiveRange(dayObj)
+  if (isStart && isEnd) classes.push('range-single')
+  else if (isStart) classes.push('range-start')
+  else if (isEnd || (dpSelecting.value && dpIsHoverEnd(dayObj))) classes.push('range-end')
+  if (dpIsInRange(dayObj)) classes.push('in-range')
+  return classes
+}
+
+const dpShortcutGroups = [
+  { id: 'last-date', items: [
+    { label: "Aujourd'hui", id: 'today', getValue: () => { const t = new Date(); return { start: t, end: t } } },
+    { label: '1h', id: '1h', showTime: true, getValue: () => { const e = new Date(); const s = new Date(e.getTime() - 3600000); return { start: s, end: e } } },
+    { label: '12h', id: '12h', showTime: true, getValue: () => { const e = new Date(); const s = new Date(e.getTime() - 43200000); return { start: s, end: e } } },
+    { label: '24h', id: '24h', getValue: () => { const e = new Date(); const s = new Date(); s.setDate(s.getDate() - 1); return { start: s, end: e } } },
+    { label: '7 jours', id: '7d', getValue: () => { const e = new Date(); const s = new Date(); s.setDate(s.getDate() - 6); return { start: s, end: e } } },
+    { label: '14 jours', id: '14d', getValue: () => { const e = new Date(); const s = new Date(); s.setDate(s.getDate() - 13); return { start: s, end: e } } },
+    { label: '30 jours', id: '30d', getValue: () => { const e = new Date(); const s = new Date(); s.setDate(s.getDate() - 29); return { start: s, end: e } } },
+    { label: '365 jours', id: '365d', getValue: () => { const e = new Date(); const s = new Date(); s.setDate(s.getDate() - 364); return { start: s, end: e } } },
+  ]},
+  { id: 'current-date', items: [
+    { label: 'Mois en cours', id: 'cur-month', getValue: () => { const n = new Date(); return { start: new Date(n.getFullYear(), n.getMonth(), 1), end: new Date(n.getFullYear(), n.getMonth() + 1, 0) } } },
+    { label: 'Année en cours', id: 'cur-year', getValue: () => { const n = new Date(); return { start: new Date(n.getFullYear(), 0, 1), end: new Date(n.getFullYear(), 11, 31) } } },
+  ]},
+  { id: 'previous-date', items: [
+    { label: 'Dernier mois', id: 'last-month', getValue: () => { const n = new Date(); return { start: new Date(n.getFullYear(), n.getMonth() - 1, 1), end: new Date(n.getFullYear(), n.getMonth(), 0) } } },
+    { label: 'Dernier trimestre', id: 'last-quarter', getValue: () => { const n = new Date(); return { start: new Date(n.getFullYear(), n.getMonth() - 3, 1), end: new Date(n.getFullYear(), n.getMonth(), 0) } } },
+    { label: 'Dernière année', id: 'last-year', getValue: () => { const n = new Date(); return { start: new Date(n.getFullYear() - 1, 0, 1), end: new Date(n.getFullYear() - 1, 11, 31) } } },
+  ]}
+]
+
+const dpFormatTime = (date) => {
+  const h = String(date.getHours()).padStart(2, '0')
+  const m = String(date.getMinutes()).padStart(2, '0')
+  return `${h}:${m}`
+}
+
+const dpApplyShortcut = (shortcut) => {
+  const { start, end } = shortcut.getValue()
+  dpTempStart.value = start
+  dpTempEnd.value = end
+  dpSelecting.value = false
+  dpHoverDate.value = null
+  dpActiveShortcut.value = shortcut.id
+  if (shortcut.showTime) {
+    dpShowTime.value = true
+    dpTimeStart.value = dpFormatTime(start)
+    dpTimeEnd.value = dpFormatTime(end)
+  } else {
+    dpShowTime.value = false
+    dpTimeStart.value = '00:00'
+    dpTimeEnd.value = '23:59'
+  }
+  dpLeftMonth.value = start.getMonth()
+  dpLeftYear.value = start.getFullYear()
+  if (dpMonthKey(end.getFullYear(), end.getMonth()) > dpMonthKey(start.getFullYear(), start.getMonth())) {
+    dpRightMonth.value = end.getMonth()
+    dpRightYear.value = end.getFullYear()
+  } else {
+    const r = dpStepMonth(dpLeftMonth.value, dpLeftYear.value, 1)
+    dpRightMonth.value = r.month
+    dpRightYear.value = r.year
+  }
+}
+
+const dpApplySelection = () => {
+  if (dpTempStart.value && !dpTempEnd.value) {
+    dpTempEnd.value = dpTempStart.value
+    dpSelecting.value = false
+  }
+  if (dpTempStart.value && dpTempEnd.value) {
+    dpInternalStart.value = dpTempStart.value
+    dpInternalEnd.value = dpTempEnd.value
+    dpConfirmedShowTime.value = dpShowTime.value
+    dpConfirmedTimeStart.value = dpTimeStart.value
+    dpConfirmedTimeEnd.value = dpTimeEnd.value
+    dateStart.value = dpFormatDate(dpTempStart.value)
+    dateEnd.value = dpFormatDate(dpTempEnd.value)
+    dpShowTimeStartDropdown.value = false
+    dpShowTimeEndDropdown.value = false
+    dpIsOpen.value = false
+    dpSelecting.value = false
+  }
+}
+
+const dpCancelSelection = () => {
+  dpTempStart.value = dpInternalStart.value
+  dpTempEnd.value = dpInternalEnd.value
+  dpShowTime.value = dpConfirmedShowTime.value
+  dpTimeStart.value = dpConfirmedTimeStart.value
+  dpTimeEnd.value = dpConfirmedTimeEnd.value
+  dpSelecting.value = false
+  dpHoverDate.value = null
+  dpActiveShortcut.value = null
+  dpShowTimeStartDropdown.value = false
+  dpShowTimeEndDropdown.value = false
+  dpIsOpen.value = false
+}
+
+const dpResetSelection = () => {
+  const today = new Date()
+  dpTempStart.value = today
+  dpTempEnd.value = today
+  dpSelecting.value = false
+  dpHoverDate.value = null
+  dpActiveShortcut.value = 'today'
+  dpLeftMonth.value = today.getMonth()
+  dpLeftYear.value = today.getFullYear()
+  const r = dpStepMonth(dpLeftMonth.value, dpLeftYear.value, 1)
+  dpRightMonth.value = r.month
+  dpRightYear.value = r.year
+}
+
+const dpToggleOpen = () => {
+  if (dpIsOpen.value) {
+    dpCancelSelection()
+  } else {
+    closeAllDropdowns('datepicker')
+    dpTempStart.value = dpInternalStart.value
+    dpTempEnd.value = dpInternalEnd.value
+    dpShowTime.value = dpConfirmedShowTime.value
+    dpTimeStart.value = dpConfirmedTimeStart.value
+    dpTimeEnd.value = dpConfirmedTimeEnd.value
+    dpSelecting.value = false
+    dpActiveShortcut.value = null
+    dpIsOpen.value = true
+  }
+}
+
+const dpShowTime = ref(false)
+const dpTimeStart = ref('00:00')
+const dpTimeEnd = ref('23:59')
+const dpConfirmedShowTime = ref(false)
+const dpConfirmedTimeStart = ref('00:00')
+const dpConfirmedTimeEnd = ref('23:59')
+const dpShowTimeStartDropdown = ref(false)
+const dpShowTimeEndDropdown = ref(false)
+
+const dpIsSingleDay = computed(() => {
+  if (!dpTempStart.value || !dpTempEnd.value) return !!dpTempStart.value && !dpTempEnd.value
+  return dpDateToKey(dpTempStart.value) === dpDateToKey(dpTempEnd.value)
 })
 
-// Check if date should show the range band (for start date only when there's an end or preview)
-const hasRangeBand = (date) => {
-  if (!date) return false
-  const isStart = isStartDate(date)
-  const isEnd = isEndDate(date)
+const dpTimeOptions = (() => {
+  const opts = []
+  for (let h = 0; h < 24; h++) {
+    for (let m = 0; m < 60; m += 30) {
+      opts.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`)
+    }
+  }
+  opts.push('23:59')
+  return opts
+})()
 
-  if (isStart && !isEnd) {
-    return tempEndDate.value || (hoveredDate.value && new Date(hoveredDate.value) > new Date(tempStartDate.value))
+const dpToggleTimeStart = () => {
+  dpShowTimeEndDropdown.value = false
+  dpShowTimeStartDropdown.value = !dpShowTimeStartDropdown.value
+}
+const dpToggleTimeEnd = () => {
+  dpShowTimeStartDropdown.value = false
+  dpShowTimeEndDropdown.value = !dpShowTimeEndDropdown.value
+}
+const dpSelectTimeStart = (t) => {
+  dpTimeStart.value = t
+  dpShowTimeStartDropdown.value = false
+  if (dpTimeEnd.value <= t) dpTimeEnd.value = '23:59'
+}
+const dpSelectTimeEnd = (t) => { if (t <= dpTimeStart.value) return; dpTimeEnd.value = t; dpShowTimeEndDropdown.value = false }
+
+const dpToggleTime = () => {
+  if (!dpIsSingleDay.value) return
+  dpShowTime.value = !dpShowTime.value
+  if (!dpShowTime.value) {
+    dpTimeStart.value = '00:00'
+    dpTimeEnd.value = '23:59'
   }
-  if (isEnd && !isStart) {
-    return true
-  }
-  return false
 }
 
-const weekDays = ['Lu', 'Ma', 'Me', 'Je', 'Ve', 'Sa', 'Di']
+const datePickerRef = ref(null)
+
+const handleClickOutside = (e) => {
+  const topbar = document.querySelector('.topbar')
+  if (topbar && !topbar.contains(e.target)) {
+    closeAllDropdowns()
+  }
+  if (datePickerRef.value && !datePickerRef.value.contains(e.target) && dpIsOpen.value) {
+    dpCancelSelection()
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
+})
 </script>
 
 <template>
   <div class="topbar">
     <!-- Corpus Dropdown -->
-    <div class="topbar-item corpus-dropdown">
-      <button class="dropdown-trigger" @click="showCorpusDropdown = !showCorpusDropdown">
+    <div class="topbar-item dropdown" :class="{ active: showCorpusDropdown }">
+      <span class="floating-label floating" :class="{ 'floating-active': showCorpusDropdown }">Corpus</span>
+      <button class="dropdown-trigger" @click="toggleDropdown('corpus')">
         <span>{{ selectedCorpus }}</span>
-        <svg class="chevron" :class="{ rotated: showCorpusDropdown }" width="18" height="18" viewBox="0 0 18 18" fill="none">
-          <path d="M4.5 6.75L9 11.25L13.5 6.75" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
+        <svg class="icon-chevron" :class="{ rotated: showCorpusDropdown }" width="15" height="15" viewBox="0 0 25 25" fill="none"><path d="M13.3592 17.6611C12.8846 18.113 12.1173 18.113 11.6477 17.6611L3.5702 9.96875C3.09564 9.51683 3.09564 8.78606 3.5702 8.33894C4.04475 7.89183 4.81212 7.88702 5.28163 8.33894L12.5009 15.2139L19.7202 8.33894C20.1948 7.88702 20.9622 7.88702 21.4317 8.33894C21.9012 8.79087 21.9062 9.52164 21.4317 9.96875L13.3541 17.6611L13.3592 17.6611Z" fill="currentColor"/></svg>
       </button>
-      <div v-if="showCorpusDropdown" class="dropdown-menu corpus-menu">
-        <div class="corpus-search">
+      <div v-if="showCorpusDropdown" class="dropdown-menu">
+        <div class="dropdown-search">
+          <svg class="search-icon" width="12" height="12" viewBox="0 0 25 25" fill="none"><path d="M17.5296 10.3453C17.5296 8.43878 16.7725 6.6103 15.4247 5.26215C14.0769 3.914 12.2489 3.15662 10.3428 3.15662C8.43678 3.15662 6.60879 3.914 5.261 5.26215C3.91322 6.6103 3.15604 8.43878 3.15604 10.3453C3.15604 12.2519 3.91322 14.0804 5.261 15.4285C6.60879 16.7767 8.43678 17.5341 10.3428 17.5341C12.2489 17.5341 14.0769 16.7767 15.4247 15.4285C16.7725 14.0804 17.5296 12.2519 17.5296 10.3453ZM16.1417 17.6734C14.5516 18.9359 12.5348 19.6907 10.3428 19.6907C5.18182 19.6907 1 15.5078 1 10.3453C1 5.18294 5.18182 1 10.3428 1C15.5039 1 19.6857 5.18294 19.6857 10.3453C19.6857 12.5379 18.9311 14.5552 17.6689 16.1458L23.6833 22.1618C24.1056 22.5842 24.1056 23.2671 23.6833 23.6849C23.2611 24.1028 22.5784 24.1073 22.1606 23.6849L16.1417 17.6734Z" fill="currentColor"/></svg>
           <input type="text" v-model="corpusSearch" placeholder="" />
-          <svg width="12" height="12" viewBox="0 0 15 15" fill="none">
-            <path d="M13.125 13.125L10.4062 10.4062M11.875 6.875C11.875 9.63642 9.63642 11.875 6.875 11.875C4.11358 11.875 1.875 9.63642 1.875 6.875C1.875 4.11358 4.11358 1.875 6.875 1.875C9.63642 1.875 11.875 4.11358 11.875 6.875Z" stroke="#595959" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
         </div>
-        <div class="corpus-options">
+        <div class="dropdown-options">
           <button
             v-for="option in filteredCorpusOptions()"
             :key="option"
             class="dropdown-option"
             :class="{ active: option === selectedCorpus }"
             @click="selectCorpus(option)"
+            v-html="highlightMatch(option, corpusSearch)"
           >
-            {{ option }}
           </button>
         </div>
       </div>
     </div>
 
-    <!-- Sources Search -->
-    <div class="topbar-item search-group sources-dropdown" :class="{ active: showSourcesDropdown }">
+    <!-- Acteurs Dropdown -->
+    <div class="topbar-item dropdown" :class="{ active: showActeursDropdown }">
       <span
-        class="sources-floating-label"
-        :class="{ floating: showSourcesDropdown || selectedItem || selectedEntitiesObjects.length > 0, 'floating-active': showSourcesDropdown }"
-        @click="showSourcesDropdown = !showSourcesDropdown"
-      >Sources</span>
-
-      <div class="search-input-wrapper" @click="showSourcesDropdown = true">
-        <svg class="search-icon" width="15" height="15" viewBox="0 0 15 15" fill="none">
-          <path d="M13.125 13.125L10.4062 10.4062M11.875 6.875C11.875 9.63642 9.63642 11.875 6.875 11.875C4.11358 11.875 1.875 9.63642 1.875 6.875C1.875 4.11358 4.11358 1.875 6.875 1.875C9.63642 1.875 11.875 4.11358 11.875 6.875Z" stroke="#595959" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-
-        <!-- Entity Tags in search bar -->
-        <div v-if="selectedEntitiesObjects.length > 0 && !showSourcesDropdown" class="search-bar-tags">
-          <div
-            v-for="entity in selectedEntitiesObjects"
-            :key="entity.id"
-            class="entity-tag"
-          >
-            <span class="entity-tag-label">{{ entity.label }}</span>
-            <button class="entity-tag-remove" @click.stop="removeEntityFromSelection(entity.id)">
-              <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
-                <path d="M7 1L1 7" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M1 1L7 7" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </button>
-          </div>
+        v-if="showActeursDropdown || hasSelection()"
+        class="floating-label floating"
+        :class="{ 'floating-active': showActeursDropdown }"
+      >Acteurs</span>
+      <button class="dropdown-trigger" @click="toggleDropdown('acteurs')">
+        <div v-if="hasSelection()" class="trigger-tags">
+          <span v-for="entity in checkedEntities" :key="entity" class="trigger-tag-checkbox">
+            {{ entity }}
+            <svg class="tag-remove" @click.stop="removeEntity(entity)" width="10" height="10" viewBox="0 0 25 25" fill="none"><path d="M4.31219 5.81336C3.89594 5.39711 3.89594 4.72402 4.31219 4.31219C4.72844 3.90036 5.40154 3.89594 5.81336 4.31219L12.5 10.9988L19.1866 4.31219C19.6029 3.89594 20.276 3.89594 20.6878 4.31219C21.0996 4.72844 21.1041 5.40154 20.6878 5.81336L14.0012 12.5L20.6878 19.1866C21.1041 19.6029 21.1041 20.276 20.6878 20.6878C20.2716 21.0996 19.5985 21.1041 19.1866 20.6878L12.5 14.0012L5.81336 20.6878C5.39711 21.1041 4.72402 21.1041 4.31219 20.6878C3.90036 20.2716 3.89594 19.5985 4.31219 19.1866L10.9988 12.5L4.31219 5.81336Z" fill="currentColor"/></svg>
+          </span>
+          <span v-if="selectedActeur" class="trigger-tag">{{ selectedActeur }}</span>
         </div>
-
-        <!-- Selected item label (for category items) -->
-        <span v-if="selectedItem && !showSourcesDropdown && selectedEntitiesObjects.length === 0" class="selected-item-label">{{ selectedItemLabel }}</span>
-
-        <input
-          v-show="(selectedEntitiesObjects.length === 0 && !selectedItem) || showSourcesDropdown"
-          ref="sourceSearchInput"
-          type="text"
-          v-model="sourceSearch"
-          :placeholder="showSourcesDropdown ? '' : 'Chercher un auteur, une communauté ...'"
-          @focus="showSourcesDropdown = true"
-        />
-      </div>
-
-      <button v-if="selectedItem && !showSourcesDropdown" class="clear-selection-btn" @click.stop="clearSelection">
-        <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-          <path d="M11.25 3.75L3.75 11.25" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M3.75 3.75L11.25 11.25" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
+        <span v-else-if="!showActeursDropdown">Acteurs</span>
+        <span v-else></span>
+        <div class="trigger-actions">
+          <svg v-if="selectedActeur" class="clear-icon" @click.stop="clearActeur" width="13" height="13" viewBox="0 0 25 25" fill="none"><path d="M4.31219 5.81336C3.89594 5.39711 3.89594 4.72402 4.31219 4.31219C4.72844 3.90036 5.40154 3.89594 5.81336 4.31219L12.5 10.9988L19.1866 4.31219C19.6029 3.89594 20.276 3.89594 20.6878 4.31219C21.0996 4.72844 21.1041 5.40154 20.6878 5.81336L14.0012 12.5L20.6878 19.1866C21.1041 19.6029 21.1041 20.276 20.6878 20.6878C20.2716 21.0996 19.5985 21.1041 19.1866 20.6878L12.5 14.0012L5.81336 20.6878C5.39711 21.1041 4.72402 21.1041 4.31219 20.6878C3.90036 20.2716 3.89594 19.5985 4.31219 19.1866L10.9988 12.5L4.31219 5.81336Z" fill="currentColor"/></svg>
+          <svg class="icon-chevron" :class="{ rotated: showActeursDropdown }" width="15" height="15" viewBox="0 0 25 25" fill="none"><path d="M13.3592 17.6611C12.8846 18.113 12.1173 18.113 11.6477 17.6611L3.5702 9.96875C3.09564 9.51683 3.09564 8.78606 3.5702 8.33894C4.04475 7.89183 4.81212 7.88702 5.28163 8.33894L12.5009 15.2139L19.7202 8.33894C20.1948 7.88702 20.9622 7.88702 21.4317 8.33894C21.9012 8.79087 21.9062 9.52164 21.4317 9.96875L13.3541 17.6611L13.3592 17.6611Z" fill="currentColor"/></svg>
+        </div>
       </button>
 
-      <div v-if="showSourcesDropdown" class="sources-categories-panel" :class="{ 'has-action-buttons': showSearchActionButtons }">
-        <!-- Scrollable content -->
-        <div class="panel-scrollable-content">
-          <!-- Entités Section (when searching with results OR when entities are selected) -->
-          <div v-if="showEntitiesSection || selectedEntitiesObjects.length > 0" class="entities-section">
-            <div class="section-header">
-              <span class="section-title">Entités</span>
-              <button class="save-list-link" @click.stop="saveEntityList">
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                  <path d="M11.0833 12.25V7.58333H2.91667V12.25M2.91667 1.75V4.66667H9.33333M12.25 12.25H1.75C1.42783 12.25 1.11889 12.1222 0.890524 11.8938C0.662159 11.6654 0.534167 11.3565 0.534167 11.0343V2.96667C0.534167 2.6445 0.662159 2.33556 0.890524 2.1072C1.11889 1.87883 1.42783 1.75083 1.75 1.75083H9.91667L13.4167 5.25083V11.0343C13.4167 11.3565 13.2887 11.6654 13.0603 11.8938C12.832 12.1222 12.5055 12.25 12.25 12.25Z" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-                <span>Sauvegarder en liste</span>
+      <div v-if="showActeursDropdown" class="dropdown-menu" :class="{ 'dropdown-menu-search': acteursSearch || checkedEntities.length > 0 }">
+        <div class="dropdown-search">
+          <svg class="search-icon" width="12" height="12" viewBox="0 0 25 25" fill="none"><path d="M17.5296 10.3453C17.5296 8.43878 16.7725 6.6103 15.4247 5.26215C14.0769 3.914 12.2489 3.15662 10.3428 3.15662C8.43678 3.15662 6.60879 3.914 5.261 5.26215C3.91322 6.6103 3.15604 8.43878 3.15604 10.3453C3.15604 12.2519 3.91322 14.0804 5.261 15.4285C6.60879 16.7767 8.43678 17.5341 10.3428 17.5341C12.2489 17.5341 14.0769 16.7767 15.4247 15.4285C16.7725 14.0804 17.5296 12.2519 17.5296 10.3453ZM16.1417 17.6734C14.5516 18.9359 12.5348 19.6907 10.3428 19.6907C5.18182 19.6907 1 15.5078 1 10.3453C1 5.18294 5.18182 1 10.3428 1C15.5039 1 19.6857 5.18294 19.6857 10.3453C19.6857 12.5379 18.9311 14.5552 17.6689 16.1458L23.6833 22.1618C24.1056 22.5842 24.1056 23.2671 23.6833 23.6849C23.2611 24.1028 22.5784 24.1073 22.1606 23.6849L16.1417 17.6734Z" fill="currentColor"/></svg>
+          <input type="text" v-model="acteursSearch" placeholder="" />
+          <svg v-if="acteursSearch" class="search-clear" @click="acteursSearch = ''" width="12" height="12" viewBox="0 0 25 25" fill="none"><path d="M4.31219 5.81336C3.89594 5.39711 3.89594 4.72402 4.31219 4.31219C4.72844 3.90036 5.40154 3.89594 5.81336 4.31219L12.5 10.9988L19.1866 4.31219C19.6029 3.89594 20.276 3.89594 20.6878 4.31219C21.0996 4.72844 21.1041 5.40154 20.6878 5.81336L14.0012 12.5L20.6878 19.1866C21.1041 19.6029 21.1041 20.276 20.6878 20.6878C20.2716 21.0996 19.5985 21.1041 19.1866 20.6878L12.5 14.0012L5.81336 20.6878C5.39711 21.1041 4.72402 21.1041 4.31219 20.6878C3.90036 20.2716 3.89594 19.5985 4.31219 19.1866L10.9988 12.5L4.31219 5.81336Z" fill="currentColor"/></svg>
+        </div>
+
+        <!-- Default view (no search, no selection) -->
+        <div v-if="!acteursSearch && checkedEntities.length === 0" class="dropdown-options">
+          <div v-for="category in acteursCategories" :key="category.id">
+            <button class="dropdown-section-dropdown" @click="toggleActeursCategory(category)">
+              <span>{{ category.label }}</span>
+              <svg class="icon-chevron blue-chevron" :class="{ expanded: category.expanded }" width="15" height="15" viewBox="0 0 25 25" fill="none">
+                <path d="M13.3592 17.6611C12.8846 18.113 12.1173 18.113 11.6477 17.6611L3.5702 9.96875C3.09564 9.51683 3.09564 8.78606 3.5702 8.33894C4.04475 7.89183 4.81212 7.88702 5.28163 8.33894L12.5009 15.2139L19.7202 8.33894C20.1948 7.88702 20.9622 7.88702 21.4317 8.33894C21.9012 8.79087 21.9062 9.52164 21.4317 9.96875L13.3541 17.6611L13.3592 17.6611Z" fill="currentColor"/>
+              </svg>
+            </button>
+            <div v-if="isCategoryVisible(category)">
+              <button
+                v-for="item in filteredActeursItems(category.items)"
+                :key="getItemName(item)"
+                :class="[category.id === 'communities' ? 'dropdown-option-modularity' : 'dropdown-option', { active: getItemName(item) === selectedActeur }]"
+                @click="selectActeur(item)"
+              >
+                <span v-if="category.id === 'communities'" class="modularity-dot" :style="{ backgroundColor: item.color }"></span>
+                <span v-html="highlightMatch(getItemName(item), acteursSearch)"></span>
               </button>
             </div>
-
-            <!-- Selected Entities with Checkboxes (always visible in dropdown) -->
-            <div v-if="selectedEntitiesObjects.length > 0" class="entities-list">
-              <div
-                v-for="entity in selectedEntitiesObjects"
-                :key="'selected-' + entity.id"
-                class="search-result-item selected"
-                @click="toggleEntitySelection(entity.id)"
-              >
-                <div class="checkbox-wrapper">
-                  <div class="custom-checkbox checked">
-                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                      <path d="M10 3L4.5 8.5L2 6" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                  </div>
-                </div>
-                <span class="entity-label" v-html="highlightMatch(entity.label)"></span>
-              </div>
-            </div>
-
-            <!-- Search Results with Checkboxes (when searching, excluding already selected) -->
-            <div v-if="sourceSearch.length > 0 && nonSelectedFilteredEntities.length > 0" class="entities-list">
-              <div
-                v-for="entity in nonSelectedFilteredEntities"
-                :key="entity.id"
-                class="search-result-item"
-                @click="toggleEntitySelection(entity.id)"
-              >
-                <div class="checkbox-wrapper">
-                  <div class="custom-checkbox">
-                  </div>
-                </div>
-                <span class="entity-label" v-html="highlightMatch(entity.label)"></span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Categories Section (always visible, filtered when searching) -->
-          <div class="categories-section">
-            <template v-for="category in sourceCategories" :key="category.id">
-              <div class="source-category-wrapper">
-                <button
-                  class="source-category"
-                  @click="toggleSourceCategory(category)"
-                >
-                  <span>{{ category.label }}</span>
-                  <svg class="category-chevron" :class="{ expanded: shouldShowCategoryItems(category) }" width="18" height="18" viewBox="0 0 18 18" fill="none">
-                    <path d="M4.5 6.75L9 11.25L13.5 6.75" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
-                </button>
-                <div v-if="shouldShowCategoryItems(category)" class="category-items">
-                  <button
-                    v-for="item in getFilteredCategoryItems(category)"
-                    :key="item.id"
-                    class="category-item"
-                    :class="{ selected: selectedItem === item.id }"
-                    @click="selectItem(item.id)"
-                    v-html="highlightMatch(item.label)"
-                  ></button>
-                </div>
-              </div>
-            </template>
           </div>
         </div>
 
-        <!-- Action Buttons (fixed at bottom) -->
-        <div v-if="showSearchActionButtons" class="search-action-buttons">
-          <button class="btn-clear" @click="clearSearchSelection">Effacer</button>
-          <button class="btn-validate" @click="validateSearchSelection">Valider</button>
+        <!-- Search view (two columns) -->
+        <div v-else class="dropdown-search-layout">
+          <div class="dropdown-search-columns">
+            <!-- Left: Entités -->
+            <div class="dropdown-search-left">
+              <div class="dropdown-section-header">
+                <span class="dropdown-section">Entités</span>
+                <svg v-if="checkedEntities.length > 0" class="reset-icon" @click="resetEntities" width="14" height="14" viewBox="0 0 25 25" fill="none">
+                  <path d="M4.5 12.5C4.5 8.08 8.08 4.5 12.5 4.5C15.14 4.5 17.48 5.78 18.97 7.75L16.5 10.25H22.5V4.25L20.28 6.47C18.39 4.09 15.62 2.5 12.5 2.5C6.98 2.5 2.5 6.98 2.5 12.5C2.5 18.02 6.98 22.5 12.5 22.5C17.16 22.5 21.07 19.28 22.14 14.94H20.06C19.04 18.16 16.04 20.5 12.5 20.5C8.08 20.5 4.5 16.92 4.5 12.5Z" fill="currentColor"/>
+                </svg>
+              </div>
+              <div class="dropdown-options">
+                <button
+                  v-for="entity in filteredEntities()"
+                  :key="entity"
+                  class="dropdown-option-checkbox"
+                  :class="{ checked: checkedEntities.includes(entity) }"
+                  @click="toggleEntity(entity)"
+                >
+                  <!-- Unchecked -->
+                  <svg v-if="!checkedEntities.includes(entity)" class="checkbox-icon" width="14" height="14" viewBox="0 0 12 12" fill="none">
+                    <rect x="0.5" y="0.5" width="11" height="11" rx="1.5" stroke="#8D8D8D"/>
+                  </svg>
+                  <!-- Checked -->
+                  <svg v-else class="checkbox-icon" width="14" height="14" viewBox="0 0 12 12" fill="none">
+                    <rect width="12" height="12" rx="2" fill="#173EB7"/>
+                    <path d="M9.2 3.6L5.8 8L3.8 6" stroke="white" stroke-width="0.72" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                  <span v-html="highlightMatch(entity, acteursSearch)"></span>
+                </button>
+              </div>
+            </div>
+            <!-- Right: Categories -->
+            <div class="dropdown-search-right">
+              <div class="dropdown-options">
+                <div v-for="category in acteursCategories" :key="category.id">
+                  <button class="dropdown-section-dropdown" @click="toggleActeursCategory(category)">
+                    <span>{{ category.label }}</span>
+                    <svg class="icon-chevron blue-chevron" :class="{ expanded: isCategoryVisible(category) }" width="15" height="15" viewBox="0 0 25 25" fill="none">
+                      <path d="M13.3592 17.6611C12.8846 18.113 12.1173 18.113 11.6477 17.6611L3.5702 9.96875C3.09564 9.51683 3.09564 8.78606 3.5702 8.33894C4.04475 7.89183 4.81212 7.88702 5.28163 8.33894L12.5009 15.2139L19.7202 8.33894C20.1948 7.88702 20.9622 7.88702 21.4317 8.33894C21.9012 8.79087 21.9062 9.52164 21.4317 9.96875L13.3541 17.6611L13.3592 17.6611Z" fill="currentColor"/>
+                    </svg>
+                  </button>
+                  <div v-if="isCategoryVisible(category)">
+                    <button
+                      v-for="item in filteredActeursItems(category.items)"
+                      :key="getItemName(item)"
+                      :class="[category.id === 'communities' ? 'dropdown-option-modularity' : 'dropdown-option', { active: getItemName(item) === selectedActeur }]"
+                      @click="selectActeur(item)"
+                    >
+                      <span v-if="category.id === 'communities'" class="modularity-dot" :style="{ backgroundColor: item.color }"></span>
+                      <span v-html="highlightMatch(getItemName(item), acteursSearch)"></span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="dropdown-search-footer">
+            <button v-if="checkedEntities.length >= 2" class="btn-save">
+              <svg width="14" height="14" viewBox="0 0 25 25" fill="none"><path d="M5 4.25C4.5875 4.25 4.25 4.5875 4.25 5V20C4.25 20.4125 4.5875 20.75 5 20.75H20C20.4125 20.75 20.75 20.4125 20.75 20V8.62344C20.75 8.42656 20.6703 8.23438 20.5297 8.09375L17 4.55937V8.75C17 9.57969 16.3297 10.25 15.5 10.25H8C7.17031 10.25 6.5 9.57969 6.5 8.75V4.25H5ZM8.75 4.25V8H14.75V4.25H8.75ZM2 5C2 3.34531 3.34531 2 5 2H16.3766C17.1734 2 17.9375 2.31406 18.5 2.87656L22.1234 6.5C22.6859 7.0625 23 7.82656 23 8.62344V20C23 21.6547 21.6547 23 20 23H5C3.34531 23 2 21.6547 2 20V5ZM9.5 15.5C9.5 14.7044 9.81607 13.9413 10.3787 13.3787C10.9413 12.8161 11.7044 12.5 12.5 12.5C13.2956 12.5 14.0587 12.8161 14.6213 13.3787C15.1839 13.9413 15.5 14.7044 15.5 15.5C15.5 16.2956 15.1839 17.0587 14.6213 17.6213C14.0587 18.1839 13.2956 18.5 12.5 18.5C11.7044 18.5 10.9413 18.1839 10.3787 17.6213C9.81607 17.0587 9.5 16.2956 9.5 15.5Z" fill="currentColor"/></svg>
+              Sauvegarder la liste
+            </button>
+            <button class="btn-valider" :class="{ disabled: checkedEntities.length === 0 }" :disabled="checkedEntities.length === 0" @click="showActeursDropdown = false">Valider</button>
+          </div>
         </div>
       </div>
-
-      <div v-if="showSourcesDropdown" class="dropdown-overlay" @click="showSourcesDropdown = false"></div>
     </div>
 
-    <!-- Sujets Search -->
-    <div class="topbar-item search-group sujets-dropdown" :class="{ active: showSujetsDropdown }">
-      <span
-        class="sources-floating-label"
-        :class="{ floating: showSujetsDropdown || selectedSubject || keywordTags.length > 0, 'floating-active': showSujetsDropdown }"
-        @click="showSujetsDropdown = !showSujetsDropdown"
-      >Sujets</span>
-
-      <div class="search-input-wrapper" @click="showSujetsDropdown = true">
-        <svg class="search-icon" width="15" height="15" viewBox="0 0 15 15" fill="none">
-          <path d="M13.125 13.125L10.4062 10.4062M11.875 6.875C11.875 9.63642 9.63642 11.875 6.875 11.875C4.11358 11.875 1.875 9.63642 1.875 6.875C1.875 4.11358 4.11358 1.875 6.875 1.875C9.63642 1.875 11.875 4.11358 11.875 6.875Z" stroke="#595959" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-
-        <!-- Keyword Tags in search bar -->
-        <div v-if="keywordTags.length > 0 && !showSujetsDropdown" class="search-bar-tags">
-          <div
-            v-for="(tag, index) in keywordTags"
-            :key="tag.id"
-            class="entity-tag"
-          >
-            <span class="entity-tag-label">{{ tag.label }}</span>
-            <button class="entity-tag-remove" @click.stop="removeKeyword(index)">
-              <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
-                <path d="M7 1L1 7" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M1 1L7 7" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </button>
+    <!-- Sujets (Queries + Search + Language) -->
+    <div class="queries-bar" :class="{ focused: sujetsSearchFocused }">
+      <span v-if="sujetsSearchFocused || sujetsSearch" class="floating-label floating" :class="{ 'floating-active': sujetsSearchFocused }">Sujet</span>
+      <!-- Sujets Dropdown -->
+      <div class="queries-dropdown" :class="{ active: showQueryDropdown }">
+        <button class="queries-dropdown-trigger" :class="{ open: showQueryDropdown, selected: !!selectedQuery }" @click="toggleQueryDropdown">
+          <span v-if="!showQueryDropdown || selectedQuery" class="queries-dropdown-text">{{ selectedQuery || 'Queries' }}</span>
+          <div class="trigger-actions">
+            <svg v-if="selectedQuery" class="clear-icon" @click.stop="clearQuery" width="13" height="13" viewBox="0 0 25 25" fill="none"><path d="M4.31219 5.81336C3.89594 5.39711 3.89594 4.72402 4.31219 4.31219C4.72844 3.90036 5.40154 3.89594 5.81336 4.31219L12.5 10.9988L19.1866 4.31219C19.6029 3.89594 20.276 3.89594 20.6878 4.31219C21.0996 4.72844 21.1041 5.40154 20.6878 5.81336L14.0012 12.5L20.6878 19.1866C21.1041 19.6029 21.1041 20.276 20.6878 20.6878C20.2716 21.0996 19.5985 21.1041 19.1866 20.6878L12.5 14.0012L5.81336 20.6878C5.39711 21.1041 4.72402 21.1041 4.31219 20.6878C3.90036 20.2716 3.89594 19.5985 4.31219 19.1866L10.9988 12.5L4.31219 5.81336Z" fill="currentColor"/></svg>
+            <svg class="icon-chevron blue-chevron" :class="{ rotated: showQueryDropdown }" width="15" height="15" viewBox="0 0 25 25" fill="none">
+              <path d="M13.3592 17.6611C12.8846 18.113 12.1173 18.113 11.6477 17.6611L3.5702 9.96875C3.09564 9.51683 3.09564 8.78606 3.5702 8.33894C4.04475 7.89183 4.81212 7.88702 5.28163 8.33894L12.5009 15.2139L19.7202 8.33894C20.1948 7.88702 20.9622 7.88702 21.4317 8.33894C21.9012 8.79087 21.9062 9.52164 21.4317 9.96875L13.3541 17.6611L13.3592 17.6611Z" fill="currentColor"/>
+            </svg>
           </div>
-        </div>
-
-        <!-- Selected subject label -->
-        <span v-if="selectedSubject && !showSujetsDropdown && keywordTags.length === 0" class="selected-item-label">{{ selectedSubjectLabel }}</span>
-
-        <input
-          v-show="(keywordTags.length === 0 && !selectedSubject) || showSujetsDropdown"
-          ref="subjectSearchInput"
-          type="text"
-          v-model="subjectSearch"
-          :placeholder="showSujetsDropdown ? '' : 'Chercher un mot-clé, une thématique ...'"
-          @focus="showSujetsDropdown = true"
-          @keydown="handleSubjectKeydown"
-        />
-      </div>
-
-      <button v-if="selectedSubject && !showSujetsDropdown" class="clear-selection-btn" @click.stop="clearSubjectSelection">
-        <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-          <path d="M11.25 3.75L3.75 11.25" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M3.75 3.75L11.25 11.25" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </button>
-
-      <!-- Sujets Panel - Liste simple -->
-      <div v-if="showSujetsDropdown" class="sources-categories-panel">
-        <div class="panel-scrollable-content">
-          <!-- Recherches récentes -->
-          <div v-if="recentSearches.length > 0 && !subjectSearch" class="subject-items-list recent-searches-section">
-            <div class="subject-category-header">Recherches récentes</div>
+        </button>
+        <div v-if="showQueryDropdown" class="queries-dropdown-menu">
+          <div class="dropdown-search">
+            <svg class="search-icon" width="12" height="12" viewBox="0 0 25 25" fill="none"><path d="M17.5296 10.3453C17.5296 8.43878 16.7725 6.6103 15.4247 5.26215C14.0769 3.914 12.2489 3.15662 10.3428 3.15662C8.43678 3.15662 6.60879 3.914 5.261 5.26215C3.91322 6.6103 3.15604 8.43878 3.15604 10.3453C3.15604 12.2519 3.91322 14.0804 5.261 15.4285C6.60879 16.7767 8.43678 17.5341 10.3428 17.5341C12.2489 17.5341 14.0769 16.7767 15.4247 15.4285C16.7725 14.0804 17.5296 12.2519 17.5296 10.3453ZM16.1417 17.6734C14.5516 18.9359 12.5348 19.6907 10.3428 19.6907C5.18182 19.6907 1 15.5078 1 10.3453C1 5.18294 5.18182 1 10.3428 1C15.5039 1 19.6857 5.18294 19.6857 10.3453C19.6857 12.5379 18.9311 14.5552 17.6689 16.1458L23.6833 22.1618C24.1056 22.5842 24.1056 23.2671 23.6833 23.6849C23.2611 24.1028 22.5784 24.1073 22.1606 23.6849L16.1417 17.6734Z" fill="currentColor"/></svg>
+            <input type="text" v-model="querySearch" placeholder="" />
+            <svg v-if="querySearch" class="search-clear" @click="querySearch = ''" width="12" height="12" viewBox="0 0 25 25" fill="none"><path d="M4.31219 5.81336C3.89594 5.39711 3.89594 4.72402 4.31219 4.31219C4.72844 3.90036 5.40154 3.89594 5.81336 4.31219L12.5 10.9988L19.1866 4.31219C19.6029 3.89594 20.276 3.89594 20.6878 4.31219C21.0996 4.72844 21.1041 5.40154 20.6878 5.81336L14.0012 12.5L20.6878 19.1866C21.1041 19.6029 21.1041 20.276 20.6878 20.6878C20.2716 21.0996 19.5985 21.1041 19.1866 20.6878L12.5 14.0012L5.81336 20.6878C5.39711 21.1041 4.72402 21.1041 4.31219 20.6878C3.90036 20.2716 3.89594 19.5985 4.31219 19.1866L10.9988 12.5L4.31219 5.81336Z" fill="currentColor"/></svg>
+          </div>
+          <span class="dropdown-section">Queries</span>
+          <div class="dropdown-options">
             <button
-              v-for="(search, index) in recentSearches"
-              :key="'recent-' + index"
-              class="category-item recent-search-item"
-              @click="addKeyword(search)"
-            >
-              <svg class="recent-icon" width="14" height="14" viewBox="0 0 14 14" fill="none">
-                <path d="M7 3.5V7L9.33333 8.16667M12.8333 7C12.8333 10.2217 10.2217 12.8333 7 12.8333C3.77834 12.8333 1.16667 10.2217 1.16667 7C1.16667 3.77834 3.77834 1.16667 7 1.16667C10.2217 1.16667 12.8333 3.77834 12.8333 7Z" stroke="#8C8C8C" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              {{ search }}
-            </button>
-          </div>
-
-          <div class="subject-items-list">
-            <div class="subject-category-header">Queries</div>
-            <template v-if="filteredSubjectItems.length > 0">
-              <button
-                v-for="item in filteredSubjectItems"
-                :key="item.id"
-                class="category-item"
-                :class="{ selected: selectedSubject === item.id }"
-                @click="selectSubject(item.id)"
-                v-html="highlightSubjectMatch(item.label)"
-              ></button>
-            </template>
-            <div v-else class="no-results">
-              <span>Aucune query</span>
-            </div>
+              v-for="option in filteredQueryOptions()"
+              :key="option"
+              class="dropdown-option"
+              :class="{ active: option === selectedQuery }"
+              @click="selectQuery(option)"
+              v-html="highlightMatch(option, querySearch)"
+            />
           </div>
         </div>
       </div>
 
-      <div v-if="showSujetsDropdown" class="dropdown-overlay" @click="showSujetsDropdown = false"></div>
+      <!-- Search bar -->
+      <svg class="queries-search-icon" width="15" height="15" viewBox="0 0 25 25" fill="none"><path d="M17.5296 10.3453C17.5296 8.43878 16.7725 6.6103 15.4247 5.26215C14.0769 3.914 12.2489 3.15662 10.3428 3.15662C8.43678 3.15662 6.60879 3.914 5.261 5.26215C3.91322 6.6103 3.15604 8.43878 3.15604 10.3453C3.15604 12.2519 3.91322 14.0804 5.261 15.4285C6.60879 16.7767 8.43678 17.5341 10.3428 17.5341C12.2489 17.5341 14.0769 16.7767 15.4247 15.4285C16.7725 14.0804 17.5296 12.2519 17.5296 10.3453ZM16.1417 17.6734C14.5516 18.9359 12.5348 19.6907 10.3428 19.6907C5.18182 19.6907 1 15.5078 1 10.3453C1 5.18294 5.18182 1 10.3428 1C15.5039 1 19.6857 5.18294 19.6857 10.3453C19.6857 12.5379 18.9311 14.5552 17.6689 16.1458L23.6833 22.1618C24.1056 22.5842 24.1056 23.2671 23.6833 23.6849C23.2611 24.1028 22.5784 24.1073 22.1606 23.6849L16.1417 17.6734Z" fill="currentColor"/></svg>
+      <input type="text" v-model="sujetsSearch" class="queries-search-input" placeholder="Chercher un mot-clé, une thématique ..." @focus="sujetsSearchFocused = true; closeAllDropdowns()" @blur="sujetsSearchFocused = false" @keydown.enter="submitSujetsSearch" />
+      <svg v-if="sujetsSearch" class="clear-icon" @click="sujetsSearch = ''" width="13" height="13" viewBox="0 0 25 25" fill="none"><path d="M4.31219 5.81336C3.89594 5.39711 3.89594 4.72402 4.31219 4.31219C4.72844 3.90036 5.40154 3.89594 5.81336 4.31219L12.5 10.9988L19.1866 4.31219C19.6029 3.89594 20.276 3.89594 20.6878 4.31219C21.0996 4.72844 21.1041 5.40154 20.6878 5.81336L14.0012 12.5L20.6878 19.1866C21.1041 19.6029 21.1041 20.276 20.6878 20.6878C20.2716 21.0996 19.5985 21.1041 19.1866 20.6878L12.5 14.0012L5.81336 20.6878C5.39711 21.1041 4.72402 21.1041 4.31219 20.6878C3.90036 20.2716 3.89594 19.5985 4.31219 19.1866L10.9988 12.5L4.31219 5.81336Z" fill="currentColor"/></svg>
+
+      <!-- Language Dropdown -->
+      <div class="queries-language" :class="{ active: showLanguageDropdown }">
+        <button class="queries-language-trigger" :class="{ open: showLanguageDropdown, selected: !!selectedLanguage }" @click="toggleLanguageDropdown">
+          <span v-if="selectedLanguageOption" class="flag-circle">{{ selectedLanguageOption.flag }}</span>
+          <svg v-else width="14" height="13" viewBox="0 0 14 13" fill="none"><path d="M11.1538 5.2H9.84615L7 13H8.30769L9 11.0686H12L12.6923 13H14L11.1538 5.2ZM9.46154 9.88L10.5385 6.90857L11.6154 9.88H9.46154ZM5.76923 7.05714C7 5.72 8 4.38286 8.61538 2.82286H10V1.63429H5.53846V0H4.46154V1.63429H0V2.74857H7.38462C6.84615 3.93714 6 5.05143 5 6.16571C4.30769 5.34857 3.69231 4.45714 3.23077 3.71429H2C2.46154 4.75429 3.30769 5.86857 4.23077 6.98286L2.38462 8.76571C2.15385 9.06286 1.84615 9.36 1.53846 9.65714L2.30769 10.4L3.23077 9.50857C3.84615 8.91429 4.46154 8.39429 5 7.8C5.61538 8.46857 6.30769 9.06286 6.92308 9.65714L7.38462 8.54286C6.84615 8.09714 6.30769 7.57714 5.76923 7.05714Z" fill="currentColor"/></svg>
+        </button>
+        <div v-if="showLanguageDropdown" class="queries-language-menu">
+          <span class="dropdown-section">Langue des contenus</span>
+          <div class="dropdown-options">
+            <button
+              v-for="lang in languageOptions"
+              :key="lang.code"
+              class="language-option"
+              :class="{ active: lang.code === selectedLanguage }"
+              @click="selectLanguage(lang)"
+            >
+              <span class="flag-circle">{{ lang.flag }}</span>
+              <span class="language-option-label">{{ lang.label }}</span>
+              <svg v-if="lang.code === selectedLanguage" class="clear-icon" @click.stop="clearLanguage" width="13" height="13" viewBox="0 0 25 25" fill="none"><path d="M4.31219 5.81336C3.89594 5.39711 3.89594 4.72402 4.31219 4.31219C4.72844 3.90036 5.40154 3.89594 5.81336 4.31219L12.5 10.9988L19.1866 4.31219C19.6029 3.89594 20.276 3.89594 20.6878 4.31219C21.0996 4.72844 21.1041 5.40154 20.6878 5.81336L14.0012 12.5L20.6878 19.1866C21.1041 19.6029 21.1041 20.276 20.6878 20.6878C20.2716 21.0996 19.5985 21.1041 19.1866 20.6878L12.5 14.0012L5.81336 20.6878C5.39711 21.1041 4.72402 21.1041 4.31219 20.6878C3.90036 20.2716 3.89594 19.5985 4.31219 19.1866L10.9988 12.5L4.31219 5.81336Z" fill="currentColor"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Date Picker -->
-    <div class="topbar-item date-picker-wrapper" :class="{ compact: compactDate, active: showDatePicker }">
-      <button class="date-picker-trigger" @click="openDatePicker">
-        <span v-if="!compactDate" class="date-range">{{ formatDateRange() }}</span>
-        <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-          <path d="M10 1.25V3.75M5 1.25V3.75M1.875 6.25H13.125M3.125 2.5H11.875C12.5654 2.5 13.125 3.05964 13.125 3.75V12.5C13.125 13.1904 12.5654 13.75 11.875 13.75H3.125C2.43464 13.75 1.875 13.1904 1.875 12.5V3.75C1.875 3.05964 2.43464 2.5 3.125 2.5Z" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </button>
-
-      <!-- Date Picker Dropdown Panel -->
-      <div v-if="showDatePicker" class="date-picker-panel">
-        <!-- Left Sidebar - Pre-defined periods -->
-        <div class="date-picker-sidebar">
-          <button
-            v-for="period in periodOptions"
-            :key="period.id"
-            class="period-option"
-            :class="{ active: selectedPeriod === period.id }"
-            @click="selectPeriod(period)"
-          >
-            {{ period.label }}
-          </button>
-        </div>
-
-        <!-- Right Content - Calendar -->
-        <div class="date-picker-content">
-
-          <!-- Calendar Navigation -->
-          <div class="calendar-header">
-            <button class="nav-btn" @click="prevMonth">
-              <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-                <path d="M11.25 13.5L6.75 9L11.25 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </button>
-            <div class="months-display">
-              <span class="month-name">{{ getMonthName(leftMonth) }}</span>
-              <span class="month-name">{{ getMonthName(rightMonth) }}</span>
-            </div>
-            <button class="nav-btn" @click="nextMonth">
-              <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-                <path d="M6.75 13.5L11.25 9L6.75 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </button>
-          </div>
-
-          <!-- Calendars Grid -->
-          <div class="calendars-container">
-            <!-- Left Calendar -->
-            <div class="calendar" @mouseleave="onDateLeave">
-              <div class="calendar-weekdays">
-                <span v-for="day in weekDays" :key="day" class="weekday">{{ day }}</span>
-              </div>
-              <div class="calendar-days">
-                <button
-                  v-for="(date, index) in getDaysInMonth(leftMonth)"
-                  :key="'left-' + index"
-                  class="calendar-day"
-                  :class="{
-                    empty: !date,
-                    'in-range': isDateInRange(date),
-                    'in-range-preview': isDateInRangePreview(date),
-                    'start-date': isStartDate(date),
-                    'end-date': isEndDate(date),
-                    'has-range': hasRangeBand(date),
-                    'selecting': isSelectingRange
-                  }"
-                  :disabled="!date"
-                  @click="selectDate(date)"
-                  @mouseenter="onDateHover(date)"
-                >
-                  {{ date ? date.getDate() : '' }}
-                </button>
-              </div>
-            </div>
-
-            <!-- Right Calendar -->
-            <div class="calendar" @mouseleave="onDateLeave">
-              <div class="calendar-weekdays">
-                <span v-for="day in weekDays" :key="day" class="weekday">{{ day }}</span>
-              </div>
-              <div class="calendar-days">
-                <button
-                  v-for="(date, index) in getDaysInMonth(rightMonth)"
-                  :key="'right-' + index"
-                  class="calendar-day"
-                  :class="{
-                    empty: !date,
-                    'in-range': isDateInRange(date),
-                    'in-range-preview': isDateInRangePreview(date),
-                    'start-date': isStartDate(date),
-                    'end-date': isEndDate(date),
-                    'has-range': hasRangeBand(date),
-                    'selecting': isSelectingRange
-                  }"
-                  :disabled="!date"
-                  @click="selectDate(date)"
-                  @mouseenter="onDateHover(date)"
-                >
-                  {{ date ? date.getDate() : '' }}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Action Buttons -->
-          <div class="date-picker-actions">
-            <button class="btn-effacer" @click="clearDates">Effacer</button>
-            <div class="action-buttons-right">
-              <button class="btn-annuler" @click="cancelDatePicker">Annuler</button>
-              <button class="btn-valider" @click="validateDates">Valider</button>
-            </div>
-          </div>
+    <div ref="datePickerRef" class="datepicker" :class="{ compact: sidebarExpanded }">
+      <!-- Trigger -->
+      <div class="datepicker-trigger" :class="{ active: dpIsOpen }" @click="dpToggleOpen">
+        <span v-if="!sidebarExpanded" class="floating-label floating" :class="{ 'floating-active': dpIsOpen }">Période</span>
+        <span v-if="!sidebarExpanded && dpDisplayValue" class="datepicker-value" :class="{ pending: dpHasChanged }">{{ dpDisplayValue }}</span>
+        <span v-else-if="!sidebarExpanded" class="datepicker-placeholder">Sélectionner une période</span>
+        <div class="trigger-actions">
+          <svg class="calendar-icon" width="15" height="15" viewBox="0 0 25 25" fill="none">
+            <path d="M8.5 2V5.5M16.5 2V5.5M3.5 9.5H21.5M5.5 4H19.5C20.6046 4 21.5 4.89543 21.5 6V20C21.5 21.1046 20.6046 22 19.5 22H5.5C4.39543 22 3.5 21.1046 3.5 20V6C3.5 4.89543 4.39543 4 5.5 4Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
         </div>
       </div>
 
-      <div v-if="showDatePicker" class="dropdown-overlay" @click="closeDatePicker"></div>
+      <!-- Popup -->
+      <Transition name="dropdown">
+        <div v-if="dpIsOpen" class="datepicker-popup">
+          <!-- Presets -->
+          <div class="date-presets">
+            <template v-for="(group, gi) in dpShortcutGroups" :key="group.id">
+              <div :class="group.id">
+                <button
+                  v-for="shortcut in group.items"
+                  :key="shortcut.id"
+                  class="dropdown-option"
+                  :class="{ active: dpActiveShortcut === shortcut.id }"
+                  @click="dpApplyShortcut(shortcut)"
+                >
+                  {{ shortcut.label }}
+                </button>
+              </div>
+              <div v-if="gi < dpShortcutGroups.length - 1" class="presets-divider"></div>
+            </template>
+          </div>
+
+          <!-- Date picker area -->
+          <div class="datepicker-main">
+            <!-- Calendars -->
+            <div class="calendars-row">
+              <!-- Left calendar -->
+              <div class="calendar">
+                <div class="calendar-nav">
+                  <button class="nav-arrow" @click="dpLeftPrev">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M14 7L9 12L14 17" stroke="#595959" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </button>
+                  <span class="calendar-month-title">{{ dpMonthNames[dpLeftMonth] }} {{ dpLeftYear }}</span>
+                  <button class="nav-arrow" @click="dpLeftNext">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M10 7L15 12L10 17" stroke="#595959" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </button>
+                </div>
+                <div class="week-row">
+                  <span v-for="name in dpDayNames" :key="name" class="week-day-label">{{ name }}</span>
+                </div>
+                <div class="days-grid">
+                  <button
+                    v-for="(dayObj, i) in dpLeftCalendarDays"
+                    :key="'l' + i"
+                    :class="dpDayClasses(dayObj)"
+                    @click="dpSelectDay(dayObj)"
+                    @mouseenter="dpOnDayHover(dayObj)"
+                  >
+                    {{ dayObj.day }}
+                  </button>
+                </div>
+              </div>
+
+              <!-- Right calendar -->
+              <div class="calendar">
+                <div class="calendar-nav">
+                  <button class="nav-arrow" @click="dpRightPrev">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M14 7L9 12L14 17" stroke="#595959" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </button>
+                  <span class="calendar-month-title">{{ dpMonthNames[dpRightMonth] }} {{ dpRightYear }}</span>
+                  <button class="nav-arrow" @click="dpRightNext">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M10 7L15 12L10 17" stroke="#595959" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </button>
+                </div>
+                <div class="week-row">
+                  <span v-for="name in dpDayNames" :key="name" class="week-day-label">{{ name }}</span>
+                </div>
+                <div class="days-grid">
+                  <button
+                    v-for="(dayObj, i) in dpRightCalendarDays"
+                    :key="'r' + i"
+                    :class="dpDayClasses(dayObj)"
+                    @click="dpSelectDay(dayObj)"
+                    @mouseenter="dpOnDayHover(dayObj)"
+                  >
+                    {{ dayObj.day }}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Toggle row -->
+            <div class="toggle-row">
+              <div class="toggle-left">
+                <span class="toggle-label" :class="{ disabled: !dpIsSingleDay }">Sélectionner un horaire</span>
+                <button class="toggle-switch" :class="{ on: dpShowTime, disabled: !dpIsSingleDay }" @click="dpToggleTime">
+                  <span class="toggle-knob"></span>
+                </button>
+              </div>
+              <div v-if="dpShowTime && dpIsSingleDay" class="time-range">
+                <div class="time-dropdown">
+                  <button class="time-pill" @click="dpToggleTimeStart">
+                    <span>{{ dpTimeStart }}</span>
+                    <svg class="time-chevron" width="15" height="15" viewBox="0 0 25 25" fill="none"><path d="M13.3592 17.6611C12.8846 18.113 12.1173 18.113 11.6477 17.6611L3.5702 9.96875C3.09564 9.51683 3.09564 8.78606 3.5702 8.33894C4.04475 7.89183 4.81212 7.88702 5.28163 8.33894L12.5009 15.2139L19.7202 8.33894C20.1948 7.88702 20.9622 7.88702 21.4317 8.33894C21.9012 8.79087 21.9062 9.52164 21.4317 9.96875L13.3541 17.6611L13.3592 17.6611Z" fill="currentColor"/></svg>
+                  </button>
+                  <div v-if="dpShowTimeStartDropdown" class="time-options" @click.stop>
+                    <button v-for="t in dpTimeOptions" :key="'ts'+t" class="time-option" :class="{ active: t === dpTimeStart }" @click="dpSelectTimeStart(t)">{{ t }}</button>
+                  </div>
+                </div>
+                <span class="time-separator">-</span>
+                <div class="time-dropdown">
+                  <button class="time-pill" @click="dpToggleTimeEnd">
+                    <span>{{ dpTimeEnd }}</span>
+                    <svg class="time-chevron" width="15" height="15" viewBox="0 0 25 25" fill="none"><path d="M13.3592 17.6611C12.8846 18.113 12.1173 18.113 11.6477 17.6611L3.5702 9.96875C3.09564 9.51683 3.09564 8.78606 3.5702 8.33894C4.04475 7.89183 4.81212 7.88702 5.28163 8.33894L12.5009 15.2139L19.7202 8.33894C20.1948 7.88702 20.9622 7.88702 21.4317 8.33894C21.9012 8.79087 21.9062 9.52164 21.4317 9.96875L13.3541 17.6611L13.3592 17.6611Z" fill="currentColor"/></svg>
+                  </button>
+                  <div v-if="dpShowTimeEndDropdown" class="time-options" @click.stop>
+                    <button v-for="t in dpTimeOptions" :key="'te'+t" class="time-option" :class="{ active: t === dpTimeEnd, disabled: t <= dpTimeStart }" :disabled="t <= dpTimeStart" @click="dpSelectTimeEnd(t)">{{ t }}</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Footer buttons -->
+            <div class="footer-row">
+              <button class="btn-outline" @click="dpResetSelection">Effacer</button>
+              <div class="footer-right">
+                <button class="btn-outline" @click="dpCancelSelection">Annuler</button>
+                <button class="btn-primary" :class="{ disabled: !dpTempStart }" :disabled="!dpTempStart" @click="dpApplySelection">Valider</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Transition>
     </div>
   </div>
 </template>
@@ -971,8 +1050,9 @@ const weekDays = ['Lu', 'Ma', 'Me', 'Je', 'Ve', 'Sa', 'Di']
 .topbar {
   display: flex;
   align-items: center;
-  gap: 10px;
   padding: 20px 30px;
+  flex-direction: row;
+  gap: 10px;
 }
 
 .topbar-item {
@@ -983,11 +1063,16 @@ const weekDays = ['Lu', 'Ma', 'Me', 'Je', 'Ve', 'Sa', 'Di']
   align-items: center;
 }
 
-/* Corpus Dropdown */
-.corpus-dropdown {
+/* Dropdown */
+.dropdown {
   position: relative;
-  min-width: 160px;
-  border: 1px solid #EAEAEA;
+  width: 240px;
+  border: 1px solid var(--color-light-grey);
+  transition: border-color 0.2s ease;
+}
+
+.dropdown.active {
+  border-color: var(--color-blue);
 }
 
 .dropdown-trigger {
@@ -1004,49 +1089,109 @@ const weekDays = ['Lu', 'Ma', 'Me', 'Je', 'Ve', 'Sa', 'Di']
   font-weight: 500;
   font-family: 'Roboto', sans-serif;
   color: var(--color-black);
+  gap: 5px;
 }
 
-.chevron {
+.trigger-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.trigger-tags {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  flex: 1;
+  min-width: 0;
+  scrollbar-width: none;
+}
+
+.trigger-tags::-webkit-scrollbar {
+  display: none;
+}
+
+.trigger-tag-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  white-space: nowrap;
+  background: var(--color-active);
+  padding: 0 5px;
+  border-radius: 4px;
+  height: 26px;
+  flex-shrink: 0;
+}
+
+.trigger-tag {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 500;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.tag-remove {
+  cursor: pointer;
+  flex-shrink: 0;
+  height: 12px;
+  width: 12px;
+}
+
+.clear-icon {
+  color: var(--color-black);
+  cursor: pointer;
+}
+
+.icon-chevron {
+  width: 15px;
+  height: 15px;
   transition: transform 0.2s ease;
   color: var(--color-black);
+  flex-shrink: 0;
 }
 
-.chevron.rotated {
+.icon-chevron.rotated,
+.icon-chevron.expanded {
   transform: rotate(180deg);
+}
+
+.blue-chevron {
+  color: var(--color-blue);
 }
 
 .dropdown-menu {
   position: absolute;
   top: calc(100% + 5px);
   left: 0;
-  width: 160px;
+  right: 0;
   background: var(--color-white);
   border-radius: 8px;
-  border: 1px solid #E5E5E5;
+  border: 1px solid var(--color-light-grey);
   z-index: 100;
-  overflow: hidden;
-}
-
-.corpus-menu {
   padding: 5px;
   display: flex;
   flex-direction: column;
   gap: 5px;
+  max-height: 300px;
 }
 
-.corpus-search {
+.dropdown-search {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 5px;
-  height: 28px;
-  padding: 0 8px;
-  border: 1px solid #EAEAEA;
+  height: 32px;
+  padding: 8px;
+  border: 1px solid var(--color-light-grey);
   border-radius: 6px;
 }
 
-.corpus-search input {
-  width: 100px;
+.dropdown-search input {
+  width: 100%;
   min-width: 0;
   border: none;
   outline: none;
@@ -1056,27 +1201,50 @@ const weekDays = ['Lu', 'Ma', 'Me', 'Je', 'Ve', 'Sa', 'Di']
   font-family: 'Roboto', sans-serif;
 }
 
-.corpus-search svg {
-  flex-shrink: 0;
+:deep(.highlight-match) {
+  font-weight: 600;
 }
 
-.corpus-options {
-  max-height: 200px;
+.dropdown-options {
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dropdown-section-dropdown {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 8px;
+  border: none;
+  background: var(--color-white);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-blue);
+  font-family: 'Roboto', sans-serif;
+  text-align: left;
+  border-radius: 4px;
+  transition: background-color 0.15s ease;
+}
+
+.dropdown-section-dropdown:hover {
+  background-color: var(--color-background);
 }
 
 .dropdown-option {
   display: block;
   width: 100%;
-  height: 30px;
-  padding: 0 8px;
+  padding: 8px;
   border: none;
   background: var(--color-white);
   text-align: left;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 16px;
   color: var(--color-black);
-  line-height: 30px;
+  font-family: 'Roboto', sans-serif;
   border-radius: 4px;
   transition: background-color 0.15s ease;
 }
@@ -1085,86 +1253,49 @@ const weekDays = ['Lu', 'Ma', 'Me', 'Je', 'Ve', 'Sa', 'Di']
   background-color: var(--color-background);
 }
 
-.dropdown-option.active {
-  background-color: var(--color-blue);
-  color: white;
+.dropdown-option.active,
+.dropdown-option-checkbox.checked {
+  background-color: var(--color-active);
+  color: var(--color-blue);
+  font-weight: 500;
 }
 
-/* Search Groups */
-.search-group {
-  position: relative;
-  flex: 1;
-  min-width: 280px;
-  border: 1px solid #EAEAEA;
-  transition: border-color 0.2s ease;
-  padding: 5px 10px;
-}
-
-.search-group.active {
-  border-color: var(--color-blue);
-}
-
-.search-input-wrapper {
-  flex: 1;
+.dropdown-option-modularity {
   display: flex;
   align-items: center;
-  gap: 10px;
-  overflow-x: auto;
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* IE/Edge */
-}
-
-.search-input-wrapper::-webkit-scrollbar {
-  display: none; /* Chrome, Safari, Opera */
-}
-
-.search-icon {
-  flex-shrink: 0;
-  opacity: 0.5;
-}
-
-.search-input-wrapper input {
-  flex: 1;
+  gap: 8px;
+  width: 100%;
+  padding: 8px;
   border: none;
-  outline: none;
-  font-size: 16px;
-  color: #595959;
-  background: transparent;
-  font-family: 'Roboto', sans-serif;
-}
-
-.search-input-wrapper input::placeholder {
-  color: var(--color-black);
-  opacity: 0.5;
-}
-
-.search-separator {
-  width: 1px;
-  height: 20px;
-  background: #595959;
-  opacity: 0.3;
-  flex-shrink: 0;
-}
-
-.filter-button {
-  height: 32px;
-  padding: 0 16px;
-  border: none;
-  background: transparent;
-  color: var(--color-black);
-  font-size: 16px;
-  font-family: 'Roboto', sans-serif;
+  background: var(--color-white);
+  text-align: left;
   cursor: pointer;
-  border-left: 1px solid #e0e0e0;
-  transition: color 0.15s ease;
+  font-size: 16px;
+  color: var(--color-black);
+  font-family: 'Roboto', sans-serif;
+  border-radius: 4px;
+  transition: background-color 0.15s ease;
 }
 
-.filter-button:hover {
+.dropdown-option-modularity:hover {
+  background-color: var(--color-background);
+}
+
+.dropdown-option-modularity.active {
+  background-color: var(--color-active);
   color: var(--color-blue);
+  font-weight: 600;
 }
 
-/* Sources Floating Label */
-.sources-floating-label {
+.modularity-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* Floating Label */
+.floating-label {
   position: absolute;
   right: 0;
   top: 50%;
@@ -1176,801 +1307,816 @@ const weekDays = ['Lu', 'Ma', 'Me', 'Je', 'Ve', 'Sa', 'Di']
   font-size: 16px;
   font-family: 'Roboto', sans-serif;
   color: #595959;
-  border-left: 1px solid #8D8D8D;
+  border-left: 1px solid var(--color-medium-grey);
   background: transparent;
   transition: all 0.2s ease;
   z-index: 102;
 }
 
-.sources-floating-label.floating {
+.floating-label.floating {
   right: auto;
   left: 10px;
   top: 0;
-  padding: 0;
+  padding: 0 1px;
   height: auto;
   font-size: 12px;
   font-weight: 500;
-  color: #8D8D8D;
-  background: #ffffff;
+  color: var(--color-medium-grey);
+  background: var(--color-white);
   border-left: none;
 }
 
-.sources-floating-label.floating-active {
+.floating-label.floating-active {
   color: var(--color-blue);
 }
 
-.selected-item-label {
-  flex: 1;
-  font-size: 16px;
-  font-family: 'Roboto', sans-serif;
-  color: var(--color-black);
+.search-icon {
+  flex-shrink: 0;
+  color: var(--color-medium-grey);
 }
 
-.clear-selection-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  border: none;
-  background: transparent;
+.search-clear {
+  flex-shrink: 0;
   cursor: pointer;
-  color: var(--color-black);
+  color: var(--color-medium-grey);
 }
 
-.clear-selection-btn:hover {
-  color: var(--color-blue);
+.search-clear:hover {
+  opacity: 1;
 }
 
-/* Sources Categories Panel */
-.sources-categories-panel {
-  position: absolute;
-  top: calc(100% + 5px);
-  left: 0;
-  right: 0;
-  background: var(--color-white);
-  border: 1px solid #EAEAEA;
-  border-radius: 8px;
-  padding: 5px;
-  z-index: 101;
+/* Search layout */
+.dropdown-menu-search {
+  min-width: 430px;
   max-height: 350px;
+}
+
+.dropdown-search-layout {
   display: flex;
   flex-direction: column;
-}
-
-.sources-categories-panel.has-action-buttons {
-  padding-bottom: 60px;
-}
-
-.panel-scrollable-content {
-  flex: 1;
-  overflow-y: auto;
-  max-height: 280px;
-}
-
-.source-category {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  padding: 8px;
-  border: none;
-  background: var(--color-white);
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--color-blue);
-  font-family: 'Roboto', sans-serif;
-  text-align: left;
-  transition: background-color 0.15s ease;
-}
-
-.source-category:hover {
-  background-color: var(--color-background);
-  border-radius: 4px;
-}
-
-.category-chevron {
-  color: var(--color-blue);
-  transition: transform 0.2s ease;
-}
-
-.category-chevron.expanded {
-  transform: rotate(180deg);
-}
-
-.source-category-wrapper {
-  display: flex;
-  flex-direction: column;
-}
-
-.category-items {
-  display: flex;
-  flex-direction: column;
-}
-
-.category-item {
-  display: block;
-  width: 100%;
-  padding: 8px 8px;
-  border: none;
-  background: transparent;
-  text-align: left;
-  cursor: pointer;
-  font-size: 14px;
-  color: var(--color-black);
-  font-family: 'Roboto', sans-serif;
-  border-radius: 4px;
-  transition: background-color 0.15s ease;
-}
-
-.category-item:hover {
-  background-color: var(--color-background);
-}
-
-.category-item.selected {
-  background-color: var(--color-blue);
-  color: var(--color-white);
-}
-
-/* Entities Section */
-.entities-section {
-  border-bottom: 1px solid #EAEAEA;
-  padding-bottom: 5px;
-  margin-bottom: 5px;
-}
-
-.section-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px;
-  background: var(--color-white);
-}
-
-.section-title {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--color-blue);
-  font-family: 'Roboto', sans-serif;
-}
-
-.save-list-link {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  color: #8D8D8D;
-  font-size: 13px;
-  font-family: 'Roboto', sans-serif;
-  padding: 4px 8px;
-  border-radius: 4px;
-  transition: all 0.15s ease;
-}
-
-.save-list-link:hover {
-  color: var(--color-blue);
-  background-color: #EAEFFD;
-}
-
-/* Entity Tags in Search Bar */
-.search-bar-tags {
-  display: flex;
-  flex-wrap: nowrap;
-  gap: 6px;
-  flex: 1;
-  min-width: 0;
-  overflow-x: auto;
-}
-
-/* Selected Entities Tags in Dropdown */
-.selected-entities-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding: 8px;
-}
-
-.entity-tag {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 8px;
-  background: #F2F2F2;
-  border-radius: 4px;
-  font-size: 14px;
-  font-family: 'Roboto', sans-serif;
-  color: var(--color-black);
-  white-space: nowrap;
-}
-
-.entity-tag-label {
-  max-width: 150px;
+  gap: 10px;
   overflow: hidden;
-  text-overflow: ellipsis;
+  flex: 1;
 }
 
-.entity-tag-remove {
+.dropdown-search-columns {
+  display: flex;
+  gap: 10px;
+  overflow: hidden;
+  flex: 1;
+}
+
+.dropdown-search-left {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  overflow-y: auto;
+  border-right: 1px solid var(--color-light-grey);
+  padding-right: 10px;
+}
+
+.dropdown-search-right {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.dropdown-section-header {
   display: flex;
   align-items: center;
-  justify-content: center;
-  width: 14px;
-  height: 14px;
-  padding: 0;
-  border: none;
-  background: transparent;
+  justify-content: space-between;
+}
+
+.dropdown-section {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-blue);
+  font-family: 'Roboto', sans-serif;
+  padding: 8px;
+}
+
+.reset-icon {
+  color: var(--color-blue);
   cursor: pointer;
-  color: #595959;
-  transition: color 0.15s ease;
+}
+
+.dropdown-option-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px;
+  border: none;
+  background: var(--color-white);
+  text-align: left;
+  cursor: pointer;
+  font-size: 16px;
+  color: var(--color-black);
+  font-family: 'Roboto', sans-serif;
+  border-radius: 4px;
+  transition: background-color 0.15s ease;
+}
+
+.dropdown-option-checkbox:hover {
+  background-color: var(--color-background);
+}
+
+.checkbox-icon {
   flex-shrink: 0;
 }
 
-.entity-tag-remove:hover {
-  color: var(--color-black);
-}
-
-.entities-list {
+.dropdown-search-footer {
   display: flex;
-  flex-direction: column;
-  max-height: 200px;
-  overflow-y: auto;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px;
 }
 
-/* Categories Section */
-.categories-section {
-  padding-top: 5px;
+.btn-valider {
+  margin-left: auto;
+  padding: 10px 15px;
+  background: var(--color-blue);
+  color: var(--color-white);
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: 'Roboto', sans-serif;
+  cursor: pointer;
 }
 
-.search-result-item {
+.btn-valider:hover:not(.disabled) {
+  opacity: 0.9;
+}
+
+.btn-valider.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btn-save {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 10px 15px;
+  background: transparent;
+  color: var(--color-blue);
+  border: 1px solid var(--color-blue);
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: 'Roboto';
+  cursor: pointer;
+}
+
+.btn-save:hover {
+  opacity: 0.8;
+}
+
+/* Queries bar */
+.queries-bar {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: 40px;
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 8px;
-  cursor: pointer;
-  border-radius: 4px;
-  transition: background-color 0.15s ease;
+  padding: 5px;
+  background: var(--color-white);
+  border: 1px solid var(--color-light-grey);
+  border-radius: 8px;
 }
 
-.search-result-item:hover {
-  background-color: #EAEFFD;
-}
-
-.search-result-item.selected {
-  background-color: #EAEFFD;
-}
-
-.checkbox-wrapper {
-  flex-shrink: 0;
-}
-
-.custom-checkbox {
-  width: 14px;
-  height: 14px;
-  border: 1.5px solid #8D8D8D;
-  border-radius: 3px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.15s ease;
-}
-
-.custom-checkbox.checked {
-  background-color: var(--color-blue);
+.queries-bar.focused {
   border-color: var(--color-blue);
 }
 
-.entity-label {
-  font-size: 14px;
-  color: var(--color-black);
+.queries-bar-label {
+  position: absolute;
+  top: 0;
+  left: 10px;
+  transform: translateY(-50%);
+  padding: 0 1px;
+  background: var(--color-white);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-blue);
   font-family: 'Roboto', sans-serif;
 }
 
-/* Highlight matching text */
-:deep(.highlight-match) {
-  font-weight: 600;
+.queries-bar-label.grey {
+  color: var(--color-dark-grey);
 }
 
-/* Search Action Buttons */
-.search-action-buttons {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
+/* Sujets dropdown inside queries */
+.queries-dropdown {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.queries-dropdown-trigger {
   display: flex;
-  gap: 10px;
-  padding: 10px;
-  background: var(--color-white);
-  border-top: 1px solid #EAEAEA;
-  border-radius: 0 0 8px 8px;
-}
-
-.btn-clear,
-.btn-validate {
-  flex: 1;
-  height: 36px;
-  border-radius: 8px;
-  font-size: 14px;
+  align-items: center;
+  justify-content: space-between;
+  width: 200px;
+  height: 29px;
+  padding: 5px 10px;
+  background: var(--color-background);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
   font-weight: 500;
   font-family: 'Roboto', sans-serif;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.btn-clear {
-  background: transparent;
-  border: 1px solid var(--color-blue);
   color: var(--color-blue);
 }
 
-.btn-clear:hover {
-  background-color: #EAEFFD;
+.queries-dropdown-trigger.selected {
+  color: var(--color-black);
 }
 
-.btn-validate {
-  background: var(--color-blue);
-  border: none;
-  color: white;
+.queries-dropdown-trigger.selected .icon-chevron {
+  color: var(--color-black);
 }
 
-.btn-validate:hover {
-  background: #1a4fd6;
+.queries-dropdown-trigger.selected .queries-dropdown-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  flex: 1;
+  text-align: left;
 }
 
-.dropdown-overlay {
-  position: fixed;
-  inset: 0;
+.queries-dropdown-trigger.open {
+  border: 1px solid var(--color-blue);
+  justify-content: flex-end;
+}
+
+.queries-dropdown-trigger.open.selected {
+  justify-content: space-between;
+}
+
+
+.queries-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 5px);
+  left: 0;
+  width: 200px;
+  background: var(--color-white);
+  border-radius: 8px;
+  border: 1px solid var(--color-light-grey);
   z-index: 100;
+  padding: 5px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  max-height: 300px;
 }
 
-/* Date Picker */
-.date-picker-wrapper {
+/* Queries search */
+.queries-search-icon {
+  flex-shrink: 0;
+  color: var(--color-dark-grey);
+}
+
+.queries-search-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  font-size: 16px;
+  font-weight: 400;
+  color: var(--color-black);
+  background: transparent;
+  font-family: 'Roboto', sans-serif;
+}
+
+.queries-search-input::placeholder {
+  color: var(--color-medium-grey);
+  font-style: italic;
+}
+
+/* Language dropdown */
+.queries-language {
   position: relative;
-  border: 1px solid #EAEAEA;
+  flex-shrink: 0;
+}
+
+.queries-language-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 29px;
+  height: 29px;
+  background: var(--color-background);
+  border: 1px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--color-blue);
+}
+
+.queries-language-trigger.open {
+  border-color: var(--color-blue);
+}
+
+.queries-language-menu {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: 176px;
+  max-height: 200px;
+  background: var(--color-white);
+  border-radius: 8px;
+  border: 1px solid var(--color-light-grey);
+  z-index: 100;
+  padding: 5px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.language-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px;
+  border: none;
+  background: var(--color-white);
+  text-align: left;
+  cursor: pointer;
+  font-size: 16px;
+  color: var(--color-black);
+  font-family: 'Roboto', sans-serif;
+  border-radius: 4px;
+  transition: background-color 0.15s ease;
+}
+
+.language-option:hover {
+  background-color: var(--color-background);
+}
+
+.language-option.active {
+  background-color: var(--color-active);
+  color: var(--color-blue);
+  font-weight: 500;
+}
+
+.language-option.active .clear-icon {
+  color: var(--color-blue);
+}
+
+.language-option-label {
+  flex: 1;
+}
+
+.flag-circle {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  overflow: hidden;
+}
+
+/* ── Date Picker ── */
+.datepicker {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.datepicker-trigger {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  height: 40px;
+  padding: 0 12px;
+  background: var(--color-white);
+  border: 1px solid var(--color-light-grey);
+  border-radius: 8px;
+  cursor: pointer;
   transition: border-color 0.2s ease;
 }
 
-.date-picker-wrapper.active {
+.datepicker-trigger.active {
   border-color: var(--color-blue);
 }
 
-.date-picker-trigger {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 0 16px ;
-  height: 100%;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  font-family: 'Roboto', sans-serif;
-  font-weight: 500;
-}
-
-.date-picker-wrapper.compact .date-picker-trigger {
-  padding: 0 12px;
-  justify-content: center;
-}
-
-.date-range {
+.datepicker-value {
   font-size: 16px;
+  font-weight: 500;
   color: var(--color-black);
+  font-family: 'Roboto', sans-serif;
   white-space: nowrap;
 }
 
-.date-picker-trigger svg {
-  color: var(--color-black);
+.datepicker-value.pending {
+  color: var(--color-dark-grey);
 }
 
-/* Date Picker Panel */
-.date-picker-panel {
+.datepicker-placeholder {
+  font-size: 16px;
+  font-weight: 400;
+  color: var(--color-medium-grey);
+  font-family: 'Roboto', sans-serif;
+  white-space: nowrap;
+}
+
+.calendar-icon {
+  color: var(--color-dark-grey);
+  flex-shrink: 0;
+}
+
+.datepicker.compact .datepicker-trigger {
+  width: auto;
+  padding: 0 12px;
+  gap: 0;
+}
+
+/* ── Popup ── */
+.datepicker-popup {
   position: absolute;
   top: calc(100% + 5px);
   right: 0;
   display: flex;
+  flex-direction: row;
+  height: 472px;
   background: var(--color-white);
-  border: 1px solid #EAEAEA;
-  border-radius: 8px;
-  z-index: 101;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  border-radius: 16px;
+  box-shadow: 0 3px 5px rgba(0, 0, 0, 0.08);
+  z-index: 200;
 }
 
-/* Sidebar - Pre-defined periods */
-.date-picker-sidebar {
+/* ── Sidebar shortcuts ── */
+.date-presets {
   display: flex;
   flex-direction: column;
-  padding: 10px;
-  border-right: 1px solid #EAEAEA;
-  min-width: 160px;
+  width: 170px;
+  padding: 12px 10px;
+  gap: 10px;
+  border-right: 1px solid var(--color-light-grey);
+  flex-shrink: 0;
+  overflow-x: scroll;
 }
 
-.period-option {
-  display: flex;
-  align-items: center;
-  height: 36px;
-  padding: 12px;
-  border: none;
-  background: transparent;
-  font-size: 14px;
-  font-family: 'Roboto', sans-serif;
-  color: var(--color-black);
-  cursor: pointer;
-  border-radius: 6px;
-  transition: all 0.15s ease;
-  text-align: left;
+.presets-divider {
+  width: 100%;
+  height: 1px;
+  background: var(--color-light-grey);
+  flex-shrink: 0;
 }
 
-.period-option:hover {
-  background-color: #F5F5F5;
-}
-
-.period-option.active {
-  background-color: var(--color-blue);
-  color: white;
-}
-
-/* Date Picker Content */
-.date-picker-content {
+/* ── Main date picker area ── */
+.datepicker-main {
   display: flex;
   flex-direction: column;
   padding: 20px 30px;
-  min-width: 500px;
+  gap: 20px;
 }
 
-/* Date Range Display */
-.date-range-display {
+/* ── Calendars row ── */
+.calendars-row {
   display: flex;
-  justify-content: center;
-  margin-bottom: 15px;
-}
-
-.date-input-group {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.date-input {
-  width: 110px;
-  height: 36px;
-  padding: 0 12px;
-  border: 1px solid #EAEAEA;
-  border-radius: 6px;
-  font-size: 14px;
-  font-family: 'Roboto', sans-serif;
-  color: var(--color-black);
-  text-align: center;
-  background: var(--color-white);
-}
-
-.date-input:focus {
-  outline: none;
-  border-color: var(--color-blue);
-}
-
-.date-separator {
-  color: #8D8D8D;
-  font-size: 14px;
-}
-
-/* Calendar Header */
-.calendar-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 15px;
-}
-
-.nav-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  color: var(--color-black);
-  border-radius: 6px;
-  transition: background-color 0.15s ease;
-}
-
-.nav-btn:hover {
-  background-color: #F5F5F5;
-}
-
-.months-display {
-  display: flex;
-  gap: 80px;
-}
-
-.month-name {
-  font-size: 14px;
-  font-weight: 500;
-  font-family: 'Roboto', sans-serif;
-  color: var(--color-black);
-  text-transform: capitalize;
-}
-
-/* Calendars Container */
-.calendars-container {
-  display: flex;
+  flex-direction: row;
   gap: 30px;
 }
 
 .calendar {
-  flex: 1;
-}
-
-.calendar-weekdays {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  margin-bottom: 8px;
-}
-
-.weekday {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 30px;
-  font-size: 12px;
-  font-weight: 500;
-  font-family: 'Roboto', sans-serif;
-  color: #8D8D8D;
+  flex-direction: column;
+  width: 281px;
+  gap: 20px;
 }
 
-.calendar-days {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 0;
-}
-
-.calendar-day {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border: none;
-  background: transparent;
-  font-size: 14px;
-  font-family: 'Roboto', sans-serif;
-  color: var(--color-black);
-  cursor: pointer;
-  transition: color 0.15s ease;
-}
-
-/* Circle behind the date number */
-.calendar-day::before {
-  content: '';
-  position: absolute;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: transparent;
-  transition: background-color 0.15s ease, transform 0.15s ease;
-  z-index: 0;
-}
-
-/* Range background - full width rectangle */
-.calendar-day::after {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 0;
-  right: 0;
-  height: 32px;
-  transform: translateY(-50%);
-  background: transparent;
-  transition: background-color 0.15s ease;
-  z-index: -1;
-}
-
-.calendar-day:hover:not(.empty):not(:disabled)::before {
-  background-color: #F0F0F0;
-  transform: scale(1.05);
-}
-
-.calendar-day.empty {
-  cursor: default;
-}
-
-.calendar-day.empty::before,
-.calendar-day.empty::after {
-  display: none;
-}
-
-/* In range - light blue background band */
-.calendar-day.in-range::after {
-  background-color: #EAEFFD;
-}
-
-.calendar-day.in-range:not(.start-date):not(.end-date)::before {
-  background-color: transparent;
-}
-
-/* Start date - blue circle */
-.calendar-day.start-date::before {
-  background-color: var(--color-blue);
-}
-
-.calendar-day.start-date {
-  color: white;
-}
-
-/* Start date with range - add right half band */
-.calendar-day.start-date.has-range::after {
-  left: 50%;
-  background-color: #EAEFFD;
-}
-
-/* End date - blue circle */
-.calendar-day.end-date::before {
-  background-color: var(--color-blue);
-}
-
-.calendar-day.end-date {
-  color: white;
-}
-
-/* End date with range - add left half band */
-.calendar-day.end-date.has-range::after {
-  right: 50%;
-  left: 0;
-  background-color: #EAEFFD;
-}
-
-/* When start and end are the same - just circle, no band */
-.calendar-day.start-date.end-date::after {
-  background-color: transparent;
-}
-
-/* Selecting mode - pulsing effect on start date */
-.calendar-day.start-date.selecting::before {
-  animation: pulse 1.5s ease-in-out infinite;
-}
-
-@keyframes pulse {
-  0%, 100% {
-    transform: scale(1);
-    box-shadow: 0 0 0 0 rgba(42, 96, 232, 0.4);
-  }
-  50% {
-    transform: scale(1.05);
-    box-shadow: 0 0 0 6px rgba(42, 96, 232, 0);
-  }
-}
-
-/* Hover on start/end dates */
-.calendar-day.start-date:hover::before,
-.calendar-day.end-date:hover::before {
-  transform: scale(1.08);
-  background-color: #1a4fd6;
-}
-
-/* Preview range while selecting */
-.calendar-day.in-range-preview::after {
-  background-color: #F0F5FF;
-}
-
-.calendar-day.in-range-preview:not(.start-date)::before {
-  background-color: rgba(42, 96, 232, 0.1);
-}
-
-/* Date Picker Actions */
-.date-picker-actions {
+/* ── Calendar nav ── */
+.calendar-nav {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 30px;
+  height: 40px;
 }
 
-.action-buttons-right {
+.nav-arrow {
   display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: transparent;
+  border-radius: 10px;
+  cursor: pointer;
+  padding: 0 8px;
+  transition: background-color 0.15s ease;
+}
+
+.nav-arrow:hover {
+  background-color: var(--color-background);
+}
+
+.calendar-month-title {
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 18.75px;
+  color: var(--color-dark-grey);
+  font-family: 'Roboto', sans-serif;
+}
+
+/* ── Week row ── */
+.week-row {
+  display: flex;
+  flex-direction: row;
+  gap: 6px;
+}
+
+.week-day-label {
+  width: 35px;
+  text-align: center;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 18.75px;
+  color: var(--color-dark-grey);
+  font-family: 'Roboto', sans-serif;
+}
+
+/* ── Days grid ── */
+.days-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 35px);
+  gap: 6px;
+  row-gap: 2px;
+}
+
+/* ── Day cells ── */
+.day-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 35px;
+  height: 35px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 400;
+  color: var(--color-dark-grey);
+  font-family: 'Roboto', sans-serif;
+  border-radius: 99px;
+  transition: background-color 0.15s ease;
+}
+
+.day-cell:hover:not(.other-month):not(.range-start):not(.range-end):not(.range-single):not(.today) {
+  background-color: var(--color-active);
+}
+
+.day-cell.other-month {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.day-cell.today {
+  
+}
+
+.day-cell.range-start,
+.day-cell.range-end,
+.day-cell.range-single {
+  background-color: var(--color-blue);
+  color: var(--color-white);
+  font-weight: 600;
+}
+
+.day-cell.in-range {
+  background-color: var(--color-active);
+  color: var(--color-blue);
+}
+
+/* ── Toggle row ── */
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 35px;
+}
+
+.toggle-left {
+  display: flex;
+  align-items: center;
   gap: 10px;
 }
 
-.btn-effacer,
-.btn-annuler,
-.btn-valider {
-  height: 36px;
-  padding: 0 20px;
+.toggle-label {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 16.41px;
+  color: var(--color-black);
+  font-family: 'Roboto', sans-serif;
+}
+
+.toggle-label.disabled {
+  color: var(--color-medium-grey);
+}
+
+.toggle-switch {
+  position: relative;
+  width: 30px;
+  height: 16px;
+  border-radius: 10px;
+  border: none;
+  background: rgba(23, 62, 183, 0.5);
+  cursor: pointer;
+  padding: 2px;
+  transition: background-color 0.2s ease;
+}
+
+.toggle-switch.on {
+  background: var(--color-blue);
+}
+
+.toggle-switch.disabled {
+  background: var(--color-light-grey);
+  cursor: not-allowed;
+}
+
+.toggle-knob {
+  display: block;
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: var(--color-white);
+  transition: transform 0.2s ease;
+}
+
+.toggle-switch.on .toggle-knob {
+  transform: translateX(14px);
+}
+
+/* ── Time range ── */
+.time-range {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.time-separator {
+  font-size: 16px;
+  color: var(--color-black);
+  font-family: 'Roboto', sans-serif;
+}
+
+.time-dropdown {
+  position: relative;
+}
+
+.time-pill {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 95px;
+  height: 35px;
+  padding: 8px 15px;
+  border-radius: 99px;
+  background: #EFF6FF;
+  border: 1px solid #EFF6FF;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 400;
+  color: var(--color-black);
+  font-family: 'Roboto', sans-serif;
+}
+
+.time-chevron {
+  width: 15px;
+  height: 15px;
+  color: var(--color-black);
+  flex-shrink: 0;
+}
+
+.time-options {
+  position: absolute;
+  bottom: calc(100% + 5px);
+  left: 0;
+  width: 95px;
+  max-height: 200px;
+  overflow-y: auto;
+  background: var(--color-white);
+  border-radius: 8px;
+  border: 1px solid var(--color-light-grey);
+  padding: 5px;
+  z-index: 300;
+}
+
+.time-option {
+  display: block;
+  width: 100%;
+  padding: 6px 10px;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--color-black);
+  font-family: 'Roboto', sans-serif;
+  border-radius: 4px;
+}
+
+.time-option:hover {
+  background-color: var(--color-background);
+}
+
+.time-option.active {
+  background-color: #EFF6FF;
+  color: var(--color-blue);
+  font-weight: 500;
+}
+
+.time-option.disabled {
+  cursor: default;
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+/* ── Footer ── */
+.footer-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.footer-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.btn-outline {
+  padding: 10px 15px;
+  background: transparent;
+  color: var(--color-blue);
+  border: 1px solid var(--color-blue);
   border-radius: 8px;
   font-size: 14px;
   font-weight: 500;
+  line-height: 16.41px;
   font-family: 'Roboto', sans-serif;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background-color 0.15s ease;
 }
 
-.btn-effacer {
-  background: transparent;
-  border: none;
-  color: #8D8D8D;
+.btn-outline:hover:not(.disabled) {
+  background-color: #EFF6FF;
 }
 
-.btn-effacer:hover {
-  color: var(--color-black);
+.btn-outline.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
-.btn-annuler {
-  background: transparent;
-  border: 1px solid #EAEAEA;
-  color: var(--color-black);
-}
-
-.btn-annuler:hover {
-  border-color: #CCCCCC;
-}
-
-.btn-valider {
+.btn-primary {
+  padding: 10px 15px;
   background: var(--color-blue);
+  color: var(--color-white);
   border: none;
-  color: white;
-}
-
-.btn-valider:hover {
-  background: #1a4fd6;
-}
-
-/* Subject Category Header */
-.subject-category-header {
-  padding: 8px;
+  border-radius: 8px;
   font-size: 14px;
   font-weight: 500;
-  color: var(--color-blue);
+  line-height: 16.41px;
   font-family: 'Roboto', sans-serif;
-}
-
-.subject-items-list {
-  display: flex;
-  flex-direction: column;
-}
-
-.no-results {
-  padding: 12px 8px;
-  font-size: 14px;
-  color: #8D8D8D;
-  font-family: 'Roboto', sans-serif;
-}
-
-.no-results span {
-  font-style: italic;
-}
-
-.add-keyword-btn {
-  display: block;
-  width: 100%;
-  margin-top: 8px;
-  padding: 8px 12px;
-  border: 1px dashed var(--color-blue);
-  background: transparent;
-  color: var(--color-blue);
-  font-size: 14px;
-  font-family: 'Roboto', sans-serif;
-  border-radius: 6px;
   cursor: pointer;
-  transition: all 0.15s ease;
-  font-style: normal;
+  transition: opacity 0.15s ease;
 }
 
-.add-keyword-btn:hover {
-  background: #EAEFFD;
+.btn-primary:hover:not(.disabled) {
+  opacity: 0.9;
 }
 
-/* Recent Searches Section */
-.recent-searches-section {
-  margin-bottom: 10px;
+.btn-primary.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
-.recent-search-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+/* ── Transition ── */
+.dropdown-enter-active {
+  transition: all 0.2s ease-out;
 }
 
-.recent-icon {
-  flex-shrink: 0;
+.dropdown-leave-active {
+  transition: all 0.15s ease-in;
 }
+
+.dropdown-enter-from,
+.dropdown-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
 </style>
