@@ -856,7 +856,7 @@ onUnmounted(() => {
             <input type="text" v-model="querySearch" placeholder="" />
             <svg v-if="querySearch" class="icon-clear" @click="querySearch = ''" width="12" height="12" viewBox="0 0 25 25" fill="none"><path d="M4.31219 5.81336C3.89594 5.39711 3.89594 4.72402 4.31219 4.31219C4.72844 3.90036 5.40154 3.89594 5.81336 4.31219L12.5 10.9988L19.1866 4.31219C19.6029 3.89594 20.276 3.89594 20.6878 4.31219C21.0996 4.72844 21.1041 5.40154 20.6878 5.81336L14.0012 12.5L20.6878 19.1866C21.1041 19.6029 21.1041 20.276 20.6878 20.6878C20.2716 21.0996 19.5985 21.1041 19.1866 20.6878L12.5 14.0012L5.81336 20.6878C5.39711 21.1041 4.72402 21.1041 4.31219 20.6878C3.90036 20.2716 3.89594 19.5985 4.31219 19.1866L10.9988 12.5L4.31219 5.81336Z" fill="currentColor"/></svg>
           </div>
-          <span class="menu-section">Queries</span>
+          <span class="menu-section">Sujets</span>
           <div class="menu-options">
             <button
               v-for="option in filteredQueryOptions()"
