@@ -1733,7 +1733,7 @@ onUnmounted(() => {
 }
 
 .calendar-icon {
-  color: var(--color-dark-grey);
+  color: var(--color-black);
   flex-shrink: 0;
 }
 
